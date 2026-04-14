@@ -1,1 +1,1 @@
-# ssh-access-to-servers
+# iPrism Server's Internal Handbook

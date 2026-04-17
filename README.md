@@ -185,7 +185,10 @@ ssh <username>@<internal_ip>
 # Useful Commands
 
 ```bash
-# Check GPU usage
+# Check NVIDIA GPU usage
+nvidia-smi
+
+# Check AMD GPU usage
 rockm-smi
 
 # Check open ports

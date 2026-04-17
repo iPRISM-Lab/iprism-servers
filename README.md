@@ -186,7 +186,7 @@ ssh <username>@<internal_ip>
 
 ```bash
 # Check GPU usage
-nvidia-smi
+rockm-smi
 
 # Check open ports
 sudo netstat -tulnp

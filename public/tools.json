@@ -1,0 +1,295 @@
+{
+  "sidebarData": [
+    {
+      "id": "overview",
+      "title": "Dashboard",
+      "type": "main"
+    },
+    {
+      "id": "nvidia",
+      "title": "NVIDIA Server",
+      "type": "infra"
+    },
+    {
+      "id": "amd",
+      "title": "AMD Server",
+      "type": "infra"
+    },
+    {
+      "id": "backup",
+      "title": "Backup Strategy",
+      "type": "ops"
+    },
+    {
+      "id": "monitoring",
+      "title": "Monitoring",
+      "type": "ops"
+    },
+    {
+      "id": "commands",
+      "title": "Useful Commands",
+      "type": "ops"
+    }
+  ],
+  "serviceCards": [
+    {
+      "category": "Core Infrastructure",
+      "tools": [
+        {
+          "name": "Docker",
+          "desc": "Containerization Engine",
+          "img": "media/docker.png",
+          "link": "#nvidia"
+        },
+        {
+          "name": "Portainer",
+          "desc": "Container Management UI",
+          "img": "media/portainer.svg",
+          "link": "#nvidia"
+        },
+        {
+          "name": "Harbor",
+          "desc": "Private Registry",
+          "img": "media/harbor.png",
+          "link": "#nvidia"
+        }
+      ]
+    },
+    {
+      "category": "CI/CD, Storage & Metrics",
+      "tools": [
+        {
+          "name": "Jenkins",
+          "desc": "Automation Server",
+          "img": "media/jenkins.png",
+          "link": "#nvidia"
+        },
+        {
+          "name": "Timeshift",
+          "desc": "System Snapshot Tool",
+          "img": "media/timeshift.png",
+          "link": "#amd"
+        },
+        {
+          "name": "Grafana",
+          "desc": "Resource Monitoring Dashboard",
+          "img": "media/grafana.png",
+          "link": "#nvidia"
+        },
+        {
+          "name": "InfluxDB",
+          "desc": "Time-Series Database",
+          "img": "media/influxdb.svg",
+          "link": "#nvidia"
+        },
+        {
+          "name": "PostgreSQL",
+          "desc": "Relational Database",
+          "img": "media/postgresql.png",
+          "link": "#nvidia"
+        }
+      ]
+    },
+    {
+      "category": "AI & Security",
+      "tools": [
+        {
+          "name": "Ollama",
+          "desc": "Local LLM Runner",
+          "img": "media/ollama.png",
+          "link": "#nvidia"
+        },
+        {
+          "name": "Rkhunter",
+          "desc": "Rootkit Scanner",
+          "img": "media/rkhunter.png",
+          "link": "#nvidia"
+        },
+        {
+          "name": "NMap",
+          "desc": "Network Security Scanner",
+          "img": "media/nmap.png",
+          "link": "#nvidia"
+        }
+      ]
+    },
+    {
+      "category": "Hardware Acceleration",
+      "tools": [
+        {
+          "name": "Nvidia-CUDA",
+          "desc": "GPU Computing Platform",
+          "img": "media/nvidia.png",
+          "link": "#nvidia"
+        },
+        {
+          "name": "AMD ROCm",
+          "desc": "Open GPU Software Stack",
+          "img": "media/amd.png",
+          "link": "#amd"
+        }
+      ]
+    }
+  ],
+  "toolDetails": {
+    "Portainer": "Portainer is a centralized container management platform. It provides a visual interface for managing Docker environments, orchestration, and monitoring containerized applications.",
+    "Docker": "Docker is the world’s leading containerization platform. It enables developers to package applications into standardized units called containers, ensuring consistency across development, testing, and production.",
+    "Harbor": "Harbor is an open-source trusted cloud-native registry project that stores, signs, and scans content. It provides security, identity, and management across your container image lifecycle.",
+    "Jenkins": "Jenkins is an open-source automation server which enables developers around the world to reliably build, test, and deploy their software.",
+    "Timeshift": "Timeshift for Linux is an application that provides functionality similar to the System Restore feature in Windows and the Time Machine tool in macOS.",
+    "Ollama": "Ollama allows you to run open-source large language models, such as Llama 3, locally on your machine with a simple setup.",
+    "Rkhunter": "Rootkit Hunter (RKH) is a Unix-based tool that scans for rootkits, backdoors, and possible local exploits by comparing SHA-1 hashes of important files with known good ones.",
+    "Nvidia-CUDA": "CUDA is a parallel computing platform and programming model developed by NVIDIA for general computing on graphical processing units (GPUs).",
+    "AMD ROCm": "ROCm is an open-source software stack for GPU computing, designed for performance and efficiency on AMD Radeon and Instinct GPUs.",
+    "Grafana": "Grafana is the open-source analytics & monitoring solution for every database. It allows you to query, visualize, alert on and understand your metrics no matter where they are stored.",
+    "InfluxDB": "InfluxDB is an open-source time series database developed by InfluxData. It is optimized for fast, high-availability storage and retrieval of time-series data.",
+    "PostgreSQL": "PostgreSQL is a powerful, open-source object-relational database system that uses and extends the SQL language combined with many features that safely store and scale the most complicated data workloads.",
+    "NMap": "Nmap (Network Mapper) is a free and open-source utility for network discovery and security auditing. It is used to discover hosts and services on a computer network by sending packets and analyzing the responses."
+  },
+  "serverData": {
+    "nvidia": {
+      "title": "NVIDIA Server",
+      "spec": {
+        "ip": "TBD",
+        "hostname": "TBD",
+        "os": "Ubuntu 22.04 LTS",
+        "gpu": "RTX 4090",
+        "cpu": "TBD",
+        "ram": "TBD"
+      },
+      "ssh": "ssh <username>@<ip_address> -p <port>",
+      "ports": [
+        {
+          "service": "HTTP",
+          "port": "80"
+        },
+        {
+          "service": "HTTPS",
+          "port": "443"
+        },
+        {
+          "service": "SSH",
+          "port": "Default: TBD"
+        }
+      ],
+      "storage": [
+        {
+          "path": "/home/",
+          "desc": "User directories"
+        },
+        {
+          "path": "/data/",
+          "desc": "Shared datasets"
+        },
+        {
+          "path": "/models/",
+          "desc": "Trained ML models"
+        }
+      ],
+      "users": [
+        "iprism",
+        "escort",
+        "iflora",
+        "trace",
+        "ellie",
+        "terra"
+      ]
+    },
+    "amd": {
+      "title": "AMD Server",
+      "spec": {
+        "ip": "TBD",
+        "hostname": "TBD",
+        "os": "Dual Boot (Ubuntu/Windows)",
+        "gpu": "TBD",
+        "cpu": "TBD"
+      },
+      "warn": "Please after Windows usage always revert the server back to Ubuntu OS.",
+      "ssh": "ssh <username>@<internal_ip>",
+      "ports": [
+        {
+          "service": "HTTP",
+          "port": "80"
+        },
+        {
+          "service": "HTTPS",
+          "port": "443"
+        }
+      ],
+      "users": [
+        "iprism",
+        "escort",
+        "iflora",
+        "trace",
+        "ellie",
+        "terra"
+      ]
+    },
+    "backup": {
+      "title": "Backup Strategy",
+      "table": [
+        {
+          "type": "User Data",
+          "frequency": "Daily",
+          "location": "/backups"
+        },
+        {
+          "type": "Models",
+          "frequency": "Weekly",
+          "location": "External Storage"
+        },
+        {
+          "type": "System Snapshot",
+          "frequency": "Weekly/Daily",
+          "location": "Image-based"
+        }
+      ]
+    },
+    "monitoring": {
+      "title": "Monitoring & Logging",
+      "tools": [
+        {
+          "name": "nvidia-smi",
+          "desc": "GPU Monitoring"
+        },
+        {
+          "name": "htop",
+          "desc": "System Monitoring"
+        },
+        {
+          "name": "glances",
+          "desc": "Advanced Dashboard"
+        },
+        {
+          "name": "docker stats",
+          "desc": "Container Monitoring"
+        }
+      ]
+    },
+    "commands": {
+      "title": "Useful Commands",
+      "items": [
+        {
+          "cmd": "nvidia-smi",
+          "desc": "Check NVIDIA GPU usage"
+        },
+        {
+          "cmd": "rockm-smi",
+          "desc": "Check AMD GPU usage"
+        },
+        {
+          "cmd": "sudo netstat -tulnp",
+          "desc": "Check open ports"
+        },
+        {
+          "cmd": "docker ps",
+          "desc": "List containers"
+        },
+        {
+          "cmd": "df -h",
+          "desc": "Disk usage"
+        }
+      ]
+    }
+  }
+}

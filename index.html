@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>iPRISM Servers Handbook</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/style.css">
+</head>
+
+<body class="dark" id="app-root">
+    <div class="bloom-background"></div>
+
+    <div class="app-layout">
+        <!-- Sidebar -->
+        <aside class="sidebar glass" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <img src="media/iPRISM_logo_trans_100X80-2.png" alt="iPRISM Logo"
+                        style="height: 32px; width: auto;">
+                </div>
+                <span class="app-title">iPRISM Hub</span>
+            </div>
+
+            <nav class="sidebar-nav" id="sidebar-nav">
+                <!-- Navigation will be rendered dynamically by main.js -->
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="theme-switch-wrapper">
+                    <span class="theme-label">Dark Mode</span>
+                    <label class="theme-switch">
+                        <input type="checkbox" id="theme-toggle">
+                        <span class="slider glass"></span>
+                    </label>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="content-area">
+            <header class="top-bar">
+                <div class="search-container glass" id="search-trigger">
+                    <span class="search-icon"></span>
+                    <span class="search-placeholder">Search documentation...</span>
+                    <span class="search-shortcut">Ctrl+K</span>
+                </div>
+                <div class="top-actions">
+                    <div class="user-badge glass">
+                        <span class="user-name">iPRISM Lab</span>
+                    </div>
+                </div>
+            </header>
+
+            <div class="scroll-container" id="main-content">
+                <!-- Content will be injected here -->
+            </div>
+        </main>
+    </div>
+
+    <!-- Command Palette (Search Modal) -->
+    <div id="command-palette" class="modal-overlay hidden">
+        <div class="modal-content glass">
+            <div class="search-input-wrapper">
+                <span class="search-icon"></span>
+                <input type="text" id="search-input" placeholder="Type to search..." autocomplete="off">
+            </div>
+            <div id="search-results" class="search-results">
+                <!-- Search results will appear here -->
+            </div>
+            <div class="search-footer">
+                <span><kbd>↑</kbd><kbd>↓</kbd> to navigate</span>
+                <span><kbd>Enter</kbd> to select</span>
+                <span><kbd>Esc</kbd> to close</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tool Detail Modal -->
+    <div id="tool-modal" class="modal-overlay hidden">
+        <div class="modal-content glass" style="max-width: 500px;">
+            <div class="modal-header glass"
+                style="padding: 24px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; gap: 16px;">
+                <img id="modal-tool-img" src="" alt="" style="width: 48px; height: 48px; object-fit: contain;">
+                <h2 id="modal-tool-name">Tool Name</h2>
+            </div>
+            <div class="modal-body" style="padding: 24px;">
+                <p id="modal-tool-desc" style="line-height: 1.6; color: var(--text-secondary);">Tool description goes
+                    here.</p>
+            </div>
+            <div class="modal-footer glass"
+                style="padding: 16px; border-top: 1px solid var(--glass-border); display: flex; justify-content: flex-end;">
+                <button onclick="document.getElementById('tool-modal').classList.add('hidden')" class="glass"
+                    style="padding: 8px 24px; border-radius: 8px; cursor: pointer; color: var(--text-primary);">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="/main.js"></script>
+</body>
+
+</html>

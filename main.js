@@ -85,14 +85,17 @@ async function loadDocs() {
 
         Object.entries(docs).forEach(([path, content]) => {
             const filename = path.split('/').pop().replace('.md', '');
-            const docId = filename.replace(/^server-/, '');
             state.docsData[filename] = {
-                id: docId,
                 title: formatDocTitle(filename),
                 content
             };
-            if (docId !== filename) {
-                state.docsData[docId] = state.docsData[filename];
+
+            if (filename === 'server-nvidia') {
+                state.docsData['nvidia-server'] = state.docsData[filename];
+            }
+
+            if (filename === 'server-amd') {
+                state.docsData['amd-server'] = state.docsData[filename];
             }
         });
     } catch (error) {
@@ -169,8 +172,8 @@ async function resolveSession(session) {
 
     state.session = session;
     state.authReady = true;
-    state.currentSection = 'overview';
     if (getCurrentPath() === ROUTES.auth) {
+        state.currentSection = 'overview';
         navigateTo(ROUTES.home, { replace: true, hash: '#overview' });
         return;
     }
@@ -462,8 +465,9 @@ function renderSidebar() {
     `;
 
     const sidebarSectionIds = new Set(state.appData.sidebarData.map((item) => item.id));
+    const hiddenDocKeys = new Set(['server-nvidia', 'server-amd']);
     const sortedDocKeys = Object.keys(state.docsData)
-        .filter((key) => !sidebarSectionIds.has(key))
+        .filter((key) => !sidebarSectionIds.has(key) && !hiddenDocKeys.has(key))
         .sort();
     if (sortedDocKeys.length) {
         html += `
@@ -558,16 +562,15 @@ function renderMarkdownPage(docId, container) {
 }
 
 function renderMarkdownWithCallouts(content) {
-    let rendered = marked.parse(content);
-    rendered = rendered.replace(
-        /<blockquote>\s*<p>\[!WARNING\]<br>\s*([\s\S]*?)<\/p>\s*<\/blockquote>/g,
+    const normalized = content.replace(
+        /^>\s*\[!WARNING\]\s*\n>\s*(.+)$/gm,
+        '<div class="markdown-callout markdown-callout-warning"><strong>Warning</strong><p>$1</p></div>'
+    ).replace(
+        /^>\s*\[!WARNING\]\s*(.+)$/gm,
         '<div class="markdown-callout markdown-callout-warning"><strong>Warning</strong><p>$1</p></div>'
     );
-    rendered = rendered.replace(
-        /<blockquote>\s*<p>\[!WARNING\]\s*<\/p>\s*<p>([\s\S]*?)<\/p>\s*<\/blockquote>/g,
-        '<div class="markdown-callout markdown-callout-warning"><strong>Warning</strong><p>$1</p></div>'
-    );
-    return rendered;
+
+    return marked.parse(normalized);
 }
 
 function formatDocTitle(filename) {
@@ -708,7 +711,7 @@ function performSearch(query) {
             group.tools.map((tool) => ({ ...tool, id: tool.link.replace('#', '') }))
         ),
         ...Object.keys(state.docsData)
-            .filter((key) => !state.appData.sidebarData.some((item) => item.id === key))
+            .filter((key) => !state.appData.sidebarData.some((item) => item.id === key) && key !== 'server-nvidia' && key !== 'server-amd')
             .map((key) => ({
             title: state.docsData[key].title,
             id: `doc-${key}`,
@@ -826,9 +829,7 @@ async function handleClick(event) {
     if (sectionLink instanceof HTMLElement) {
         const section = sectionLink.dataset.section;
         if (section) {
-            state.currentSection = section;
-            renderSidebar();
-            renderContent(section);
+            window.location.hash = section;
         }
         return;
     }

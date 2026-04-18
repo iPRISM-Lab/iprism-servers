@@ -6,12 +6,12 @@
       "type": "main"
     },
     {
-      "id": "nvidia",
+      "id": "nvidia-server",
       "title": "NVIDIA Server",
       "type": "infra"
     },
     {
-      "id": "amd",
+      "id": "amd-server",
       "title": "AMD Server",
       "type": "infra"
     },
@@ -39,19 +39,19 @@
           "name": "Docker",
           "desc": "Containerization Engine",
           "img": "media/docker.png",
-          "link": "#nvidia"
+          "link": "#nvidia-server"
         },
         {
           "name": "Portainer",
           "desc": "Container Management UI",
           "img": "media/portainer.svg",
-          "link": "#nvidia"
+          "link": "#nvidia-server"
         },
         {
           "name": "Harbor",
           "desc": "Private Registry",
           "img": "media/harbor.png",
-          "link": "#nvidia"
+          "link": "#nvidia-server"
         }
       ]
     },
@@ -62,31 +62,31 @@
           "name": "Jenkins",
           "desc": "Automation Server",
           "img": "media/jenkins.png",
-          "link": "#nvidia"
+          "link": "#nvidia-server"
         },
         {
           "name": "Timeshift",
           "desc": "System Snapshot Tool",
           "img": "media/timeshift.png",
-          "link": "#amd"
+          "link": "#amd-server"
         },
         {
           "name": "Grafana",
           "desc": "Resource Monitoring Dashboard",
           "img": "media/grafana.png",
-          "link": "#nvidia"
+          "link": "#nvidia-server"
         },
         {
           "name": "InfluxDB",
           "desc": "Time-Series Database",
           "img": "media/influxdb.svg",
-          "link": "#nvidia"
+          "link": "#nvidia-server"
         },
         {
           "name": "PostgreSQL",
           "desc": "Relational Database",
           "img": "media/postgresql.png",
-          "link": "#nvidia"
+          "link": "#nvidia-server"
         }
       ]
     },
@@ -97,19 +97,19 @@
           "name": "Ollama",
           "desc": "Local LLM Runner",
           "img": "media/ollama.png",
-          "link": "#nvidia"
+          "link": "#nvidia-server"
         },
         {
           "name": "Rkhunter",
           "desc": "Rootkit Scanner",
           "img": "media/rkhunter.png",
-          "link": "#nvidia"
+          "link": "#nvidia-server"
         },
         {
           "name": "NMap",
           "desc": "Network Security Scanner",
           "img": "media/nmap.png",
-          "link": "#nvidia"
+          "link": "#nvidia-server"
         }
       ]
     },
@@ -120,13 +120,13 @@
           "name": "Nvidia-CUDA",
           "desc": "GPU Computing Platform",
           "img": "media/nvidia.png",
-          "link": "#nvidia"
+          "link": "#nvidia-server"
         },
         {
           "name": "AMD ROCm",
           "desc": "Open GPU Software Stack",
           "img": "media/amd.png",
-          "link": "#amd"
+          "link": "#amd-server"
         }
       ]
     }

@@ -9,7 +9,6 @@ const ROUTES = {
 };
 
 const GITHUB_API_VERSION = '2022-11-28';
-const POST_SIGN_IN_LOADING_DELAY_MS = 1500;
 const APP_BASE_PATH = import.meta.env.BASE_URL.replace(/\/$/, '');
 const root = document.querySelector('#app-root');
 
@@ -132,8 +131,11 @@ async function handleAuthStateChange(event, session) {
 
 async function resolveSession(session) {
     const checkId = ++state.authCheckId;
+    const showLoading = shouldShowAuthLoading();
     state.authReady = false;
-    renderRoute();
+    if (showLoading) {
+        renderRoute();
+    }
 
     if (!session) {
         state.session = null;
@@ -157,11 +159,6 @@ async function resolveSession(session) {
         state.authReady = true;
         await supabase.auth.signOut({ scope: 'local' });
         navigateTo(ROUTES.auth, { replace: true });
-        return;
-    }
-
-    await delay(POST_SIGN_IN_LOADING_DELAY_MS);
-    if (checkId !== state.authCheckId) {
         return;
     }
 
@@ -975,12 +972,6 @@ function escapeHtml(value) {
         .replaceAll("'", '&#39;');
 }
 
-function delay(ms) {
-    return new Promise((resolve) => {
-        window.setTimeout(resolve, ms);
-    });
-}
-
 function restoreGithubPagesRoute() {
     const url = new URL(window.location.href);
     const route = url.searchParams.get('route');
@@ -1019,4 +1010,8 @@ function stripBasePath(path) {
     }
 
     return path.startsWith(APP_BASE_PATH) ? path.slice(APP_BASE_PATH.length) || '/' : path;
+}
+
+function shouldShowAuthLoading() {
+    return isAuthCallbackHash(window.location.hash.slice(1));
 }

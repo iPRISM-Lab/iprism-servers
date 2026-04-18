@@ -85,10 +85,15 @@ async function loadDocs() {
 
         Object.entries(docs).forEach(([path, content]) => {
             const filename = path.split('/').pop().replace('.md', '');
+            const docId = filename.replace(/^server-/, '');
             state.docsData[filename] = {
-                title: filename.charAt(0).toUpperCase() + filename.slice(1).replace(/-/g, ' '),
+                id: docId,
+                title: formatDocTitle(filename),
                 content
             };
+            if (docId !== filename) {
+                state.docsData[docId] = state.docsData[filename];
+            }
         });
     } catch (error) {
         console.error('Failed to load docs:', error);
@@ -540,15 +545,34 @@ function renderMarkdownPage(docId, container) {
         return;
     }
 
+    const rendered = renderMarkdownWithCallouts(doc.content);
     container.innerHTML = `
         <div class="markdown-body">
-            ${marked.parse(doc.content)}
+            ${rendered}
         </div>
     `;
 
     container.querySelectorAll('pre code').forEach((block) => {
         hljs.highlightElement(block);
     });
+}
+
+function renderMarkdownWithCallouts(content) {
+    let rendered = marked.parse(content);
+    rendered = rendered.replace(
+        /<blockquote>\s*<p>\[!WARNING\]<br>\s*([\s\S]*?)<\/p>\s*<\/blockquote>/g,
+        '<div class="markdown-callout markdown-callout-warning"><strong>Warning</strong><p>$1</p></div>'
+    );
+    rendered = rendered.replace(
+        /<blockquote>\s*<p>\[!WARNING\]\s*<\/p>\s*<p>([\s\S]*?)<\/p>\s*<\/blockquote>/g,
+        '<div class="markdown-callout markdown-callout-warning"><strong>Warning</strong><p>$1</p></div>'
+    );
+    return rendered;
+}
+
+function formatDocTitle(filename) {
+    const normalized = filename.replace(/^server-/, '');
+    return normalized.charAt(0).toUpperCase() + normalized.slice(1).replace(/-/g, ' ');
 }
 
 function renderServerPage(id, container) {

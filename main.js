@@ -4,8 +4,8 @@ import { markedHighlight } from 'marked-highlight';
 import hljs from 'highlight.js';
 
 const ROUTES = {
-    auth: '/iprism-servers/auth',
-    home: '/iprism-servers/'
+    auth: '/auth',
+    home: '/'
 };
 
 const GITHUB_API_VERSION = '2022-11-28';

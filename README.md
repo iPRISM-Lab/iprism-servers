@@ -1,4 +1,4 @@
-<img width="1508" height="780" alt="iprism-hub-banner" src="https://github.com/user-attachments/assets/d57d9f14-a6dd-4262-aa4a-4682021e68e2" />
+<img width="1328" height="474" alt="Screenshot 2026-04-18 at 10 33 55 PM" src="https://github.com/user-attachments/assets/68694684-4dfc-4f9a-9294-1c44e83ca648" />
 
 # iPRISM Hub
 

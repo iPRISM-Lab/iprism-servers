@@ -1,4 +1,4 @@
-![iPRISM Hub banner](public/media/readme-banner-preview.png)
+<img width="1508" height="780" alt="iprism-hub-banner" src="https://github.com/user-attachments/assets/d57d9f14-a6dd-4262-aa4a-4682021e68e2" />
 
 # iPRISM Hub
 

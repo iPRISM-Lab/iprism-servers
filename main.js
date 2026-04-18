@@ -59,11 +59,12 @@ async function bootstrap() {
         applyTheme(localStorage.getItem('theme') || 'light');
         state.currentSection = getInitialSection();
 
-        await Promise.all([loadData(), loadDocs()]);
+        await loadData();
+        await loadDocs();
         await initAuth();
     } catch (error) {
         console.error('Initialization failed:', error);
-        state.flash = 'The app failed to initialize.';
+        state.flash = `The app failed to initialize: ${error instanceof Error ? error.message : 'unknown error'}`;
         state.authReady = true;
     }
 
@@ -73,22 +74,27 @@ async function bootstrap() {
 async function loadData() {
     const response = await fetch(withBasePath('/tools.json'));
     if (!response.ok) {
-        throw new Error('Failed to load application data');
+        throw new Error(`Failed to load application data (${response.status})`);
     }
 
     state.appData = await response.json();
 }
 
 async function loadDocs() {
-    const docs = import.meta.glob('./docs/*.md', { query: '?raw', import: 'default', eager: true });
+    try {
+        const docs = import.meta.glob('./docs/*.md', { query: '?raw', import: 'default', eager: true });
 
-    Object.entries(docs).forEach(([path, content]) => {
-        const filename = path.split('/').pop().replace('.md', '');
-        state.docsData[filename] = {
-            title: filename.charAt(0).toUpperCase() + filename.slice(1).replace(/-/g, ' '),
-            content
-        };
-    });
+        Object.entries(docs).forEach(([path, content]) => {
+            const filename = path.split('/').pop().replace('.md', '');
+            state.docsData[filename] = {
+                title: filename.charAt(0).toUpperCase() + filename.slice(1).replace(/-/g, ' '),
+                content
+            };
+        });
+    } catch (error) {
+        console.error('Failed to load docs:', error);
+        state.docsData = {};
+    }
 }
 
 async function initAuth() {
@@ -244,8 +250,13 @@ function renderRoute() {
 
     const path = getCurrentPath();
     if (path === ROUTES.auth) {
+        if (hasAppSectionHash()) {
+            navigateTo(ROUTES.auth, { replace: true });
+            return;
+        }
+
         if (state.session) {
-            navigateTo(ROUTES.home, { replace: true });
+            navigateTo(ROUTES.home, { replace: true, hash: '#overview' });
             return;
         }
 
@@ -929,6 +940,11 @@ function isAuthCallbackHash(hash) {
         || hash.startsWith('error=')
         || hash.startsWith('error_code=')
         || hash.startsWith('token_type=');
+}
+
+function hasAppSectionHash() {
+    const hash = window.location.hash.slice(1);
+    return Boolean(hash) && !isAuthCallbackHash(hash);
 }
 
 function applyTheme(theme) {

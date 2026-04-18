@@ -10,6 +10,7 @@ const ROUTES = {
 
 const GITHUB_API_VERSION = '2022-11-28';
 const POST_SIGN_IN_LOADING_DELAY_MS = 1500;
+const APP_BASE_PATH = import.meta.env.BASE_URL.replace(/\/$/, '');
 const root = document.querySelector('#app-root');
 
 const state = {
@@ -54,6 +55,7 @@ document.addEventListener('keydown', handleKeydown);
 
 async function bootstrap() {
     try {
+        restoreGithubPagesRoute();
         applyTheme(localStorage.getItem('theme') || 'light');
         state.currentSection = getInitialSection();
 
@@ -69,7 +71,7 @@ async function bootstrap() {
 }
 
 async function loadData() {
-    const response = await fetch('/tools.json');
+    const response = await fetch(withBasePath('/tools.json'));
     if (!response.ok) {
         throw new Error('Failed to load application data');
     }
@@ -291,7 +293,7 @@ function renderAuthView() {
             <div class="auth-stage glass">
                 <section class="auth-panel glass">
                     <div class="auth-header">
-                        <img src="media/Iprism Icons/Icon-iOS-Default-1024x1024@1x.png" alt="iPRISM Logo" class="auth-logo">
+                        <img src="${assetUrl('media/Iprism Icons/Icon-iOS-Default-1024x1024@1x.png')}" alt="iPRISM Logo" class="auth-logo">
                         <div class="auth-theme-bar">
                             ${renderThemeSwitch()}
                         </div>
@@ -304,8 +306,8 @@ function renderAuthView() {
                         ${state.flash ? `<div class="auth-alert auth-alert-error">${escapeHtml(state.flash)}</div>` : ''}
                         ${hasConfigMessage}
                         <button class="github-button glass" data-action="github-login" ${hasSupabaseConfig ? '' : 'disabled'}>
-                            <img src="media/github-sign.png" alt="" class="github-button-icon github-button-icon-light" aria-hidden="true">
-                            <img src="media/github-sign-dark-theme.png" alt="" class="github-button-icon github-button-icon-dark" aria-hidden="true">
+                            <img src="${assetUrl('media/github-sign.png')}" alt="" class="github-button-icon github-button-icon-light" aria-hidden="true">
+                            <img src="${assetUrl('media/github-sign-dark-theme.png')}" alt="" class="github-button-icon github-button-icon-dark" aria-hidden="true">
                             Continue with GitHub
                         </button>
                         <p class="auth-footnote">
@@ -346,7 +348,7 @@ function renderAppView() {
             <aside class="sidebar glass" id="sidebar">
                 <div class="sidebar-header">
                     <div class="logo">
-                        <img src="media/Iprism Icons/Icon-iOS-Default-1024x1024@1x.png" alt="iPRISM Logo" style="height: 38px; width: auto;">
+                        <img src="${assetUrl('media/Iprism Icons/Icon-iOS-Default-1024x1024@1x.png')}" alt="iPRISM Logo" style="height: 38px; width: auto;">
                     </div>
                     <span class="app-title">iPRISM Hub</span>
                 </div>
@@ -864,7 +866,7 @@ async function signInWithGithub() {
     const { error } = await supabase.auth.signInWithOAuth({
         provider: 'github',
         options: {
-            redirectTo: `${window.location.origin}${ROUTES.auth}`,
+            redirectTo: `${window.location.origin}${withBasePath(ROUTES.auth)}`,
             scopes
         }
     });
@@ -879,7 +881,8 @@ async function signInWithGithub() {
 function navigateTo(path, options = {}) {
     const normalized = normalizePath(path);
     const current = getCurrentPath();
-    const targetUrl = options.hash ? `${normalized}${options.hash}` : normalized;
+    const targetPath = withBasePath(normalized);
+    const targetUrl = options.hash ? `${targetPath}${options.hash}` : targetPath;
     if (targetUrl === `${window.location.pathname}${window.location.hash}`) {
         renderRoute();
         return;
@@ -891,7 +894,12 @@ function navigateTo(path, options = {}) {
 }
 
 function getCurrentPath() {
-    return normalizePath(window.location.pathname);
+    const pathname = window.location.pathname;
+    const relativePath = APP_BASE_PATH && pathname.startsWith(APP_BASE_PATH)
+        ? pathname.slice(APP_BASE_PATH.length) || '/'
+        : pathname;
+
+    return normalizePath(relativePath);
 }
 
 function normalizePath(pathname) {
@@ -950,4 +958,28 @@ function delay(ms) {
     return new Promise((resolve) => {
         window.setTimeout(resolve, ms);
     });
+}
+
+function restoreGithubPagesRoute() {
+    const url = new URL(window.location.href);
+    const route = url.searchParams.get('route');
+    if (!route) {
+        return;
+    }
+
+    const restoredPath = normalizePath(route);
+    const restoredQuery = url.searchParams.get('q') || '';
+    const nextPath = withBasePath(restoredPath);
+    const nextUrl = `${window.location.origin}${nextPath}${restoredQuery}${window.location.hash}`;
+
+    window.history.replaceState({}, '', nextUrl);
+}
+
+function withBasePath(path) {
+    const normalized = path.startsWith('/') ? path : `/${path}`;
+    return APP_BASE_PATH ? `${APP_BASE_PATH}${normalized}` : normalized;
+}
+
+function assetUrl(path) {
+    return withBasePath(path);
 }

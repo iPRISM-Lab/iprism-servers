@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Redirecting...</title>
+</head>
+
+<body>
+    <script>
+        (function () {
+            var basePath = '/iprism-servers';
+            var path = window.location.pathname;
+            var relativePath = path.indexOf(basePath) === 0 ? path.slice(basePath.length) : path;
+            var query = window.location.search || '';
+            var hash = window.location.hash || '';
+            var redirect = basePath + '/?route=' + encodeURIComponent(relativePath || '/') + '&q=' + encodeURIComponent(query) + hash;
+
+            window.location.replace(redirect);
+        }());
+    </script>
+</body>
+
+</html>

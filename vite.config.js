@@ -1,6 +1,8 @@
 import { defineConfig } from 'vite';
 
 export default defineConfig({
+    // Uncomment on deployment
+    // base: '/iprism-servers/',
     server: {
         host: '127.0.0.1',
         port: 5173,

@@ -983,7 +983,7 @@ function restoreGithubPagesRoute() {
         return;
     }
 
-    const restoredPath = normalizePath(route);
+    const restoredPath = normalizePath(stripBasePath(route));
     const restoredQuery = url.searchParams.get('q') || '';
     const nextPath = withBasePath(restoredPath);
     const nextUrl = `${window.location.origin}${nextPath}${restoredQuery}${window.location.hash}`;
@@ -993,9 +993,25 @@ function restoreGithubPagesRoute() {
 
 function withBasePath(path) {
     const normalized = path.startsWith('/') ? path : `/${path}`;
-    return APP_BASE_PATH ? `${APP_BASE_PATH}${normalized}` : normalized;
+    if (!APP_BASE_PATH) {
+        return normalized;
+    }
+
+    if (normalized === APP_BASE_PATH || normalized.startsWith(`${APP_BASE_PATH}/`)) {
+        return normalized;
+    }
+
+    return `${APP_BASE_PATH}${normalized}`;
 }
 
 function assetUrl(path) {
     return withBasePath(path);
+}
+
+function stripBasePath(path) {
+    if (!APP_BASE_PATH) {
+        return path;
+    }
+
+    return path.startsWith(APP_BASE_PATH) ? path.slice(APP_BASE_PATH.length) || '/' : path;
 }

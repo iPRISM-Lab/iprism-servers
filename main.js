@@ -459,7 +459,10 @@ function renderSidebar() {
         </div>
     `;
 
-    const sortedDocKeys = Object.keys(state.docsData).sort();
+    const sidebarSectionIds = new Set(state.appData.sidebarData.map((item) => item.id));
+    const sortedDocKeys = Object.keys(state.docsData)
+        .filter((key) => !sidebarSectionIds.has(key))
+        .sort();
     if (sortedDocKeys.length) {
         html += `
             <div class="nav-group">
@@ -495,10 +498,10 @@ function renderContent(sectionId) {
 
     if (sectionId === 'overview') {
         renderDashboard(wrapper);
+    } else if (state.docsData[sectionId]) {
+        renderMarkdownPage(sectionId, wrapper);
     } else if (sectionId.startsWith('doc-')) {
         renderMarkdownPage(sectionId.replace('doc-', ''), wrapper);
-    } else if (state.appData.serverData[sectionId]) {
-        renderServerPage(sectionId, wrapper);
     } else {
         renderGenericPage(sectionId, wrapper);
     }
@@ -683,7 +686,9 @@ function performSearch(query) {
         ...state.appData.serviceCards.flatMap((group) =>
             group.tools.map((tool) => ({ ...tool, id: tool.link.replace('#', '') }))
         ),
-        ...Object.keys(state.docsData).map((key) => ({
+        ...Object.keys(state.docsData)
+            .filter((key) => !state.appData.sidebarData.some((item) => item.id === key))
+            .map((key) => ({
             title: state.docsData[key].title,
             id: `doc-${key}`,
             desc: 'Internal document'

@@ -4,7 +4,7 @@ import { markedHighlight } from 'marked-highlight';
 import hljs from 'highlight.js';
 
 const ROUTES = {
-    auth: '/iprism-servers/',
+    auth: '/iprism-servers/auth',
     home: '/iprism-servers/'
 };
 

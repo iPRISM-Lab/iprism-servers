@@ -1,18 +1,40 @@
+import { createClient } from '@supabase/supabase-js';
 import { marked } from 'marked';
 import { markedHighlight } from 'marked-highlight';
 import hljs from 'highlight.js';
 
-const $ = (selector) => document.querySelector(selector);
-const $$ = (selector) => document.querySelectorAll(selector);
+const ROUTES = {
+    auth: '/auth',
+    home: '/'
+};
 
-// --- State & Data Management ---
-let currentSection = 'overview';
-let appData = null;
-let docsData = {};
+const GITHUB_API_VERSION = '2022-11-28';
+const POST_SIGN_IN_LOADING_DELAY_MS = 1500;
+const root = document.querySelector('#app-root');
 
-const isDark = () => document.body.classList.contains('dark');
+const state = {
+    currentSection: 'overview',
+    appData: null,
+    docsData: {},
+    session: null,
+    authReady: false,
+    flash: '',
+    searchOpen: false,
+    authCheckId: 0
+};
 
-// Configure Marked with modern extension system
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+const githubOrg = (import.meta.env.VITE_GITHUB_ORG || '').trim();
+const hasSupabaseConfig = Boolean(supabaseUrl && supabaseAnonKey);
+const supabase = hasSupabaseConfig
+    ? createClient(supabaseUrl, supabaseAnonKey, {
+        auth: {
+            detectSessionInUrl: true
+        }
+    })
+    : null;
+
 marked.use(markedHighlight({
     emptyLangClass: 'hljs',
     langPrefix: 'hljs language-',
@@ -22,119 +44,416 @@ marked.use(markedHighlight({
     }
 }));
 
-// --- Initialization ---
-document.addEventListener('DOMContentLoaded', async () => {
+document.addEventListener('DOMContentLoaded', bootstrap);
+window.addEventListener('popstate', () => renderRoute());
+window.addEventListener('hashchange', handleHashChange);
+document.addEventListener('click', handleClick);
+document.addEventListener('change', handleChange);
+document.addEventListener('input', handleInput);
+document.addEventListener('keydown', handleKeydown);
+
+async function bootstrap() {
     try {
-        await loadData();
-        await loadDocs();
-        initTheme();
-        handleRouting();
-    } catch (err) {
-        console.error('Initialization failed:', err);
+        applyTheme(localStorage.getItem('theme') || 'light');
+        state.currentSection = getInitialSection();
+
+        await Promise.all([loadData(), loadDocs()]);
+        await initAuth();
+    } catch (error) {
+        console.error('Initialization failed:', error);
+        state.flash = 'The app failed to initialize.';
+        state.authReady = true;
     }
 
-    window.addEventListener('hashchange', handleRouting);
-});
+    renderRoute();
+}
 
 async function loadData() {
-    try {
-        const response = await fetch('/tools.json');
-        if (!response.ok) throw new Error('Data fetch failed');
-        appData = await response.json();
-    } catch (error) {
-        console.error('Failed to load application data:', error);
+    const response = await fetch('/tools.json');
+    if (!response.ok) {
+        throw new Error('Failed to load application data');
     }
+
+    state.appData = await response.json();
 }
 
 async function loadDocs() {
-    try {
-        // Use relative path for Vite discovery
-        const docs = import.meta.glob('./docs/*.md', { query: '?raw', import: 'default', eager: true });
+    const docs = import.meta.glob('./docs/*.md', { query: '?raw', import: 'default', eager: true });
 
-        Object.entries(docs).forEach(([path, content]) => {
-            const filename = path.split('/').pop().replace('.md', '');
-            docsData[filename] = {
-                title: filename.charAt(0).toUpperCase() + filename.slice(1).replace(/-/g, ' '),
-                content: content
-            };
-        });
-    } catch (error) {
-        console.error('Failed to discover documents:', error);
-    }
+    Object.entries(docs).forEach(([path, content]) => {
+        const filename = path.split('/').pop().replace('.md', '');
+        state.docsData[filename] = {
+            title: filename.charAt(0).toUpperCase() + filename.slice(1).replace(/-/g, ' '),
+            content
+        };
+    });
 }
 
-// --- Theme Logic ---
-function initTheme() {
-    const savedTheme = localStorage.getItem('theme') || 'light';
-    document.body.className = savedTheme;
-
-    const themeToggle = $('#theme-toggle');
-    if (themeToggle) {
-        themeToggle.checked = savedTheme === 'dark';
-        themeToggle.addEventListener('change', () => {
-            const newTheme = themeToggle.checked ? 'dark' : 'light';
-            document.body.className = newTheme;
-            localStorage.setItem('theme', newTheme);
-        });
-    }
-}
-
-// --- Navigation Logic ---
-function renderSidebar() {
-    const nav = $('#sidebar-nav');
-    if (!nav) return;
-    if (!appData) {
-        nav.innerHTML = '<div class="nav-group"><div class="nav-group-title">Loading Hub Data...</div></div>';
+async function initAuth() {
+    if (!supabase) {
+        state.authReady = true;
+        state.flash = 'Supabase configuration is missing. Add the Vite auth environment variables to enable GitHub sign-in.';
         return;
     }
 
-    let html = '';
+    supabase.auth.onAuthStateChange((event, session) => {
+        void handleAuthStateChange(event, session);
+    });
 
-    // Main Sections
-    html += `
+    const { data, error } = await supabase.auth.getSession();
+    if (error) {
+        console.error('Failed to resolve session:', error);
+        state.flash = 'Could not restore your session. Please sign in again.';
+    }
+
+    await resolveSession(data?.session ?? null);
+}
+
+async function handleAuthStateChange(event, session) {
+    if (event === 'SIGNED_OUT') {
+        state.session = null;
+        state.authReady = true;
+        renderRoute();
+        return;
+    }
+
+    if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED') {
+        await resolveSession(session);
+    }
+}
+
+async function resolveSession(session) {
+    const checkId = ++state.authCheckId;
+    state.authReady = false;
+    renderRoute();
+
+    if (!session) {
+        state.session = null;
+        state.authReady = true;
+        if (getCurrentPath() === ROUTES.home) {
+            navigateTo(ROUTES.auth, { replace: true });
+        } else {
+            renderRoute();
+        }
+        return;
+    }
+
+    const verification = await verifyGithubOrganization(session);
+    if (checkId !== state.authCheckId) {
+        return;
+    }
+
+    if (!verification.ok) {
+        state.flash = verification.message;
+        state.session = null;
+        state.authReady = true;
+        await supabase.auth.signOut({ scope: 'local' });
+        navigateTo(ROUTES.auth, { replace: true });
+        return;
+    }
+
+    await delay(POST_SIGN_IN_LOADING_DELAY_MS);
+    if (checkId !== state.authCheckId) {
+        return;
+    }
+
+    state.session = session;
+    state.authReady = true;
+    state.currentSection = 'overview';
+    if (getCurrentPath() === ROUTES.auth) {
+        navigateTo(ROUTES.home, { replace: true, hash: '#overview' });
+        return;
+    }
+
+    renderRoute();
+}
+
+async function verifyGithubOrganization(session) {
+    if (!githubOrg) {
+        return { ok: true };
+    }
+
+    const providerToken = session.provider_token ?? session.providerToken;
+    if (!providerToken) {
+        return {
+            ok: false,
+            message: 'GitHub organization verification requires the GitHub OAuth token. Re-authenticate and approve the requested organization scope.'
+        };
+    }
+
+    try {
+        const response = await fetch(`https://api.github.com/user/memberships/orgs/${encodeURIComponent(githubOrg)}`, {
+            headers: {
+                Accept: 'application/vnd.github+json',
+                Authorization: `Bearer ${providerToken}`,
+                'X-GitHub-Api-Version': GITHUB_API_VERSION
+            }
+        });
+
+        if (response.status === 404) {
+            return {
+                ok: false,
+                message: `Your GitHub account is not a member of the ${githubOrg} organization.`
+            };
+        }
+
+        if (response.status === 403) {
+            return {
+                ok: false,
+                message: 'GitHub organization verification was denied. Confirm that the Supabase GitHub provider is requesting the read:org scope.'
+            };
+        }
+
+        if (!response.ok) {
+            return {
+                ok: false,
+                message: 'GitHub organization verification failed. Please try again.'
+            };
+        }
+
+        const membership = await response.json();
+        if (membership.state !== 'active') {
+            return {
+                ok: false,
+                message: `Your GitHub membership for ${githubOrg} is not active yet.`
+            };
+        }
+
+        return { ok: true };
+    } catch (error) {
+        console.error('GitHub org verification failed:', error);
+        return {
+            ok: false,
+            message: 'GitHub organization verification could not be completed. Please try again.'
+        };
+    }
+}
+
+function renderRoute() {
+    if (!root) {
+        return;
+    }
+
+    if (!state.authReady) {
+        root.innerHTML = renderLoadingView();
+        syncThemeControls();
+        return;
+    }
+
+    const path = getCurrentPath();
+    if (path === ROUTES.auth) {
+        if (state.session) {
+            navigateTo(ROUTES.home, { replace: true });
+            return;
+        }
+
+        root.innerHTML = renderAuthView();
+        syncThemeControls();
+        return;
+    }
+
+    if (!state.session) {
+        navigateTo(ROUTES.auth, { replace: true });
+        return;
+    }
+
+    root.innerHTML = renderAppView();
+    renderSidebar();
+    renderContent(state.currentSection);
+    syncThemeControls();
+}
+
+function renderLoadingView() {
+    return `
+        <div class="auth-screen">
+            <div class="auth-stage glass">
+                <div class="auth-card auth-loading-card glass">
+                    <div class="loading-orb"></div>
+                    <h1>Checking access</h1>
+                    <p>Resolving your GitHub session and organization access.</p>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function renderAuthView() {
+    const hasConfigMessage = hasSupabaseConfig
+        ? ''
+        : '<div class="auth-alert auth-alert-error">Supabase is not configured. Add `VITE_SUPABASE_URL` and either `VITE_SUPABASE_ANON_KEY` or `VITE_SUPABASE_PUBLISHABLE_KEY` before using this page.</div>';
+
+    const orgMessage = githubOrg
+        ? `<p class="auth-meta">Access is limited to GitHub members of <strong>${escapeHtml(githubOrg)}</strong>.</p>`
+        : '<p class="auth-meta">GitHub is the only sign-in method for this portal.</p>';
+
+    return `
+        <div class="auth-screen">
+            <div class="auth-stage glass">
+                <section class="auth-panel glass">
+                    <div class="auth-header">
+                        <img src="media/Iprism Icons/Icon-iOS-Default-1024x1024@1x.png" alt="iPRISM Logo" class="auth-logo">
+                        <div class="auth-theme-bar">
+                            ${renderThemeSwitch()}
+                        </div>
+                    </div>
+                    <div class="auth-copy">
+                        <h1>Sign in to iPRISM Hub</h1>
+                        ${orgMessage}
+                    </div>
+                    <div class="auth-actions">
+                        ${state.flash ? `<div class="auth-alert auth-alert-error">${escapeHtml(state.flash)}</div>` : ''}
+                        ${hasConfigMessage}
+                        <button class="github-button glass" data-action="github-login" ${hasSupabaseConfig ? '' : 'disabled'}>
+                            <img src="media/github-sign.png" alt="" class="github-button-icon github-button-icon-light" aria-hidden="true">
+                            <img src="media/github-sign-dark-theme.png" alt="" class="github-button-icon github-button-icon-dark" aria-hidden="true">
+                            Continue with GitHub
+                        </button>
+                        <p class="auth-footnote">
+                            If access is denied, ask an administrator to review your GitHub access.
+                        </p>
+                    </div>
+                </section>
+                <aside class="auth-sidecar glass">
+                    <span class="auth-sidecar-label">Welcome</span>
+                    <h2>Access the iPRISM internal hub</h2>
+                    <p>Sign in with your GitHub account to open the lab handbook, infrastructure notes, and internal server documentation.</p>
+                    <div class="auth-sidecar-list">
+                        <div class="auth-sidecar-item">
+                            <span class="auth-sidecar-title">One secure sign-in</span>
+                            <span class="auth-sidecar-text">Use your GitHub account to continue without creating a separate password.</span>
+                        </div>
+                        <div class="auth-sidecar-item">
+                            <span class="auth-sidecar-title">Internal content only</span>
+                            <span class="auth-sidecar-text">The hub contains private documentation for lab infrastructure and shared systems.</span>
+                        </div>
+                        <div class="auth-sidecar-item">
+                            <span class="auth-sidecar-title">Access review</span>
+                            <span class="auth-sidecar-text">${githubOrg ? `Only approved members associated with ${escapeHtml(githubOrg)} can continue.` : 'Access is granted only to approved users managed by the lab administrators.'}</span>
+                        </div>
+                    </div>
+                </aside>
+            </div>
+        </div>
+    `;
+}
+
+function renderAppView() {
+    const user = state.session?.user ?? {};
+    const userName = user.user_metadata?.full_name || user.user_metadata?.user_name || user.email || 'Authenticated user';
+
+    return `
+        <div class="app-layout">
+            <aside class="sidebar glass" id="sidebar">
+                <div class="sidebar-header">
+                    <div class="logo">
+                        <img src="media/Iprism Icons/Icon-iOS-Default-1024x1024@1x.png" alt="iPRISM Logo" style="height: 38px; width: auto;">
+                    </div>
+                    <span class="app-title">iPRISM Hub</span>
+                </div>
+
+                <nav class="sidebar-nav" id="sidebar-nav"></nav>
+
+                <div class="sidebar-footer">
+                    <div class="theme-switch-wrapper">
+                        <span class="theme-label">Dark Mode</span>
+                        ${renderThemeSwitch()}
+                    </div>
+                </div>
+            </aside>
+
+            <main class="content-area">
+                <header class="top-bar">
+                    <div class="search-container glass" id="search-trigger" data-action="open-search">
+                        <span class="search-icon"></span>
+                        <span class="search-placeholder">Search documentation...</span>
+                        <span class="search-shortcut">Ctrl+K</span>
+                    </div>
+                    <div class="top-actions">
+                        <div class="user-badge glass">
+                            <span class="user-name">${escapeHtml(userName)}</span>
+                        </div>
+                        <button class="top-action-button glass" data-action="sign-out">Sign out</button>
+                    </div>
+                </header>
+
+                <div class="scroll-container" id="main-content"></div>
+            </main>
+        </div>
+
+        <div id="command-palette" class="modal-overlay ${state.searchOpen ? '' : 'hidden'}">
+            <div class="modal-content glass">
+                <div class="search-input-wrapper">
+                    <span class="search-icon"></span>
+                    <input type="text" id="search-input" placeholder="Type to search..." autocomplete="off">
+                </div>
+                <div id="search-results" class="search-results"></div>
+                <div class="search-footer">
+                    <span><kbd>↑</kbd><kbd>↓</kbd> to navigate</span>
+                    <span><kbd>Enter</kbd> to select</span>
+                    <span><kbd>Esc</kbd> to close</span>
+                </div>
+            </div>
+        </div>
+
+        <div id="tool-modal" class="modal-overlay hidden">
+            <div class="modal-content glass tool-modal-card">
+                <div class="modal-header glass tool-modal-header">
+                    <img id="modal-tool-img" src="" alt="" class="tool-modal-image">
+                    <h2 id="modal-tool-name">Tool Name</h2>
+                </div>
+                <div class="modal-body tool-modal-body">
+                    <p id="modal-tool-desc">Tool description goes here.</p>
+                </div>
+                <div class="modal-footer glass tool-modal-footer">
+                    <button class="glass top-action-button" data-action="close-tool-modal">Close</button>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function renderThemeSwitch() {
+    return `
+        <span class="theme-switch-control">
+            <span class="theme-icon theme-icon-sun" aria-hidden="true">☀</span>
+            <span class="theme-icon theme-icon-moon" aria-hidden="true">☾</span>
+            <label class="theme-switch">
+                <input type="checkbox" data-theme-toggle>
+                <span class="slider glass"></span>
+            </label>
+        </span>
+    `;
+}
+
+function renderSidebar() {
+    const nav = document.querySelector('#sidebar-nav');
+    if (!nav || !state.appData) {
+        return;
+    }
+
+    let html = `
         <div class="nav-group">
             <div class="nav-group-title">Main</div>
-            ${appData.sidebarData.filter(d => d.type === 'main').map(d => `
-                <a href="#${d.id}" class="nav-item ${currentSection === d.id ? 'active' : ''}" data-section="${d.id}">
-                    <span class="nav-text">${d.title}</span>
-                </a>
-            `).join('')}
+            ${renderNavLinks(state.appData.sidebarData.filter((item) => item.type === 'main'))}
         </div>
-    `;
-
-    // Infrastructure
-    html += `
         <div class="nav-group">
             <div class="nav-group-title">Infrastructure</div>
-            ${appData.sidebarData.filter(d => d.type === 'infra').map(d => `
-                <a href="#${d.id}" class="nav-item ${currentSection === d.id ? 'active' : ''}" data-section="${d.id}">
-                    <span class="nav-text">${d.title}</span>
-                </a>
-            `).join('')}
+            ${renderNavLinks(state.appData.sidebarData.filter((item) => item.type === 'infra'))}
         </div>
-    `;
-
-    // Operations
-    html += `
         <div class="nav-group">
             <div class="nav-group-title">Operations</div>
-            ${appData.sidebarData.filter(d => d.type === 'ops').map(d => `
-                <a href="#${d.id}" class="nav-item ${currentSection === d.id ? 'active' : ''}" data-section="${d.id}">
-                    <span class="nav-text">${d.title}</span>
-                </a>
-            `).join('')}
+            ${renderNavLinks(state.appData.sidebarData.filter((item) => item.type === 'ops'))}
         </div>
     `;
 
-    // Dynamic Docs (Sorted alphabetically)
-    const sortedDocKeys = Object.keys(docsData).sort();
-    if (sortedDocKeys.length > 0) {
+    const sortedDocKeys = Object.keys(state.docsData).sort();
+    if (sortedDocKeys.length) {
         html += `
             <div class="nav-group">
                 <div class="nav-group-title">Documentation</div>
-                ${sortedDocKeys.map(key => `
-                    <a href="#doc-${key}" class="nav-item ${currentSection === 'doc-' + key ? 'active' : ''}" data-section="doc-${key}">
-                        <span class="nav-text">${docsData[key].title}</span>
+                ${sortedDocKeys.map((key) => `
+                    <a href="#doc-${key}" class="nav-item ${state.currentSection === `doc-${key}` ? 'active' : ''}" data-section="doc-${key}">
+                        <span class="nav-text">${escapeHtml(state.docsData[key].title)}</span>
                     </a>
                 `).join('')}
             </div>
@@ -142,133 +461,21 @@ function renderSidebar() {
     }
 
     nav.innerHTML = html;
-
-    // Attach listeners after re-render
-    nav.querySelectorAll('.nav-item').forEach(item => {
-        item.addEventListener('click', (e) => {
-            const section = item.getAttribute('data-section');
-            if (section) setActiveSection(section);
-        });
-    });
 }
 
-function setActiveSection(sectionId) {
-    currentSection = sectionId;
-    renderSidebar();
-    renderContent(sectionId);
+function renderNavLinks(items) {
+    return items.map((item) => `
+        <a href="#${item.id}" class="nav-item ${state.currentSection === item.id ? 'active' : ''}" data-section="${item.id}">
+            <span class="nav-text">${escapeHtml(item.title)}</span>
+        </a>
+    `).join('');
 }
 
-function handleRouting() {
-    const hash = window.location.hash.slice(1) || 'overview';
-    setActiveSection(hash);
-}
-
-// --- Search Logic ---
-function setupSearch() {
-    const palette = $('#command-palette');
-    const input = $('#search-input');
-    const trigger = $('#search-trigger');
-
-    if (!trigger) return;
-
-    trigger.addEventListener('click', openPalette);
-
-    window.addEventListener('keydown', (e) => {
-        if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-            e.preventDefault();
-            openPalette();
-        }
-        if (e.key === 'Escape') {
-            closePalette();
-            const modal = $('#tool-modal');
-            if (modal) modal.classList.add('hidden');
-        }
-    });
-
-    if (palette) {
-        palette.addEventListener('click', (e) => {
-            if (e.target === palette) closePalette();
-        });
-    }
-
-    const toolModal = $('#tool-modal');
-    if (toolModal) {
-        toolModal.addEventListener('click', (e) => {
-            if (e.target === toolModal) toolModal.classList.add('hidden');
-        });
-    }
-
-    if (input) {
-        input.addEventListener('input', (e) => {
-            const query = e.target.value.toLowerCase();
-            performSearch(query);
-        });
-    }
-
-    function openPalette() {
-        if (!palette) return;
-        palette.classList.remove('hidden');
-        if (input) {
-            input.value = '';
-            input.focus();
-        }
-        performSearch('');
-    }
-
-    function closePalette() {
-        if (palette) palette.classList.add('hidden');
-    }
-}
-
-function performSearch(query) {
-    const resultsContainer = $('#search-results');
-    if (!resultsContainer || !appData) return;
-    resultsContainer.innerHTML = '';
-
-    const allItems = [
-        ...appData.sidebarData,
-        ...appData.serviceCards.flatMap(c => c.tools.map(t => ({ ...t, id: t.link.slice(1) }))),
-        ...Object.keys(docsData).map(key => ({ title: docsData[key].title, id: 'doc-' + key, desc: 'Internal Document' }))
-    ];
-
-    const filtered = allItems.filter(item =>
-        item.title?.toLowerCase().includes(query) ||
-        item.name?.toLowerCase().includes(query) ||
-        item.desc?.toLowerCase().includes(query)
-    ).slice(0, 8);
-
-    filtered.forEach(item => {
-        const div = document.createElement('div');
-        div.className = 'search-item';
-        div.innerHTML = `
-            <div class="search-item-title">${item.title || item.name}</div>
-            <div class="search-item-snippet">${item.desc || 'Internal Document'}</div>
-        `;
-        div.onclick = () => {
-            window.location.hash = item.id;
-            const palette = $('#command-palette');
-            if (palette) palette.classList.add('hidden');
-        };
-        resultsContainer.appendChild(div);
-    });
-}
-
-// --- Tool Modal Logic ---
-function openToolModal(toolName, imgSrc) {
-    const modal = $('#tool-modal');
-    if (!modal || !appData) return;
-
-    $('#modal-tool-name').innerText = toolName;
-    $('#modal-tool-img').src = imgSrc;
-    $('#modal-tool-desc').innerText = appData.toolDetails[toolName] || 'Specific information about this tool will be enhanced later.';
-    modal.classList.remove('hidden');
-}
-
-// --- Content Rendering ---
 function renderContent(sectionId) {
-    const container = $('#main-content');
-    if (!container || !appData) return;
-    container.innerHTML = '';
+    const container = document.querySelector('#main-content');
+    if (!container || !state.appData) {
+        return;
+    }
 
     const wrapper = document.createElement('div');
     wrapper.className = 'fade-in';
@@ -277,14 +484,14 @@ function renderContent(sectionId) {
         renderDashboard(wrapper);
     } else if (sectionId.startsWith('doc-')) {
         renderMarkdownPage(sectionId.replace('doc-', ''), wrapper);
-    } else if (appData.serverData[sectionId]) {
+    } else if (state.appData.serverData[sectionId]) {
         renderServerPage(sectionId, wrapper);
     } else {
         renderGenericPage(sectionId, wrapper);
     }
 
+    container.innerHTML = '';
     container.appendChild(wrapper);
-    setupSearch(); // Re-bind search triggers if moved
 }
 
 function renderDashboard(container) {
@@ -295,37 +502,26 @@ function renderDashboard(container) {
         </div>
     `;
 
-    let grids = '';
-    appData.serviceCards.forEach(group => {
-        grids += `
-            <div class="grid-section">
-                <h3 class="nav-group-title" style="margin-top: 32px">${group.category}</h3>
-                <div class="grid-container">
-                    ${group.tools.map(tool => `
-                        <div class="service-card glass tool-card" data-name="${tool.name}" data-img="${tool.img}">
-                            <img src="${tool.img}" class="card-icon" alt="${tool.name}">
-                            <div class="card-title">${tool.name}</div>
-                            <div class="card-desc">${tool.desc}</div>
-                        </div>
-                    `).join('')}
-                </div>
+    const grids = state.appData.serviceCards.map((group) => `
+        <div class="grid-section">
+            <h3 class="nav-group-title dashboard-group-title">${escapeHtml(group.category)}</h3>
+            <div class="grid-container">
+                ${group.tools.map((tool) => `
+                    <div class="service-card glass tool-card" data-tool-name="${escapeHtml(tool.name)}" data-tool-img="${escapeHtml(tool.img)}">
+                        <img src="${escapeHtml(tool.img)}" class="card-icon" alt="${escapeHtml(tool.name)}">
+                        <div class="card-title">${escapeHtml(tool.name)}</div>
+                        <div class="card-desc">${escapeHtml(tool.desc)}</div>
+                    </div>
+                `).join('')}
             </div>
-        `;
-    });
+        </div>
+    `).join('');
 
     container.innerHTML = header + grids;
-
-    container.querySelectorAll('.tool-card').forEach(card => {
-        card.addEventListener('click', (e) => {
-            const name = card.getAttribute('data-name');
-            const img = card.getAttribute('data-img');
-            openToolModal(name, img);
-        });
-    });
 }
 
-async function renderMarkdownPage(docId, container) {
-    const doc = docsData[docId];
+function renderMarkdownPage(docId, container) {
+    const doc = state.docsData[docId];
     if (!doc) {
         renderGenericPage('Document Not Found', container);
         return;
@@ -337,32 +533,30 @@ async function renderMarkdownPage(docId, container) {
         </div>
     `;
 
-    // Refresh highlight.js for the newly rendered code blocks
     container.querySelectorAll('pre code').forEach((block) => {
         hljs.highlightElement(block);
     });
 }
 
 function renderServerPage(id, container) {
-    const data = appData.serverData[id];
+    const data = state.appData.serverData[id];
     container.innerHTML = `
         <div class="markdown-body">
-            <h1>${data.title}</h1>
-            
+            <h1>${escapeHtml(data.title)}</h1>
+
             ${data.spec ? `
-                <div class="spec-grid glass" style="padding: 20px; border-radius: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-                    ${Object.entries(data.spec).map(([k, v]) => `
+                <div class="spec-grid glass server-spec-grid">
+                    ${Object.entries(data.spec).map(([key, value]) => `
                         <div>
-                            <div style="font-size: 0.8rem; text-transform: uppercase; color: var(--text-secondary)">${k}</div>
-                            <div style="font-weight: 600">${v}</div>
+                            <div class="server-spec-label">${escapeHtml(key)}</div>
+                            <div class="server-spec-value">${escapeHtml(value)}</div>
                         </div>
                     `).join('')}
                 </div>
             ` : ''}
 
-            ${data.warn ? `<div class="warning glass" style="margin-top: 20px; padding: 16px; border-left: 4px solid #ffcc00; background: rgba(255, 204, 0, 0.1)"> ${data.warn}</div>` : ''}
-
-            ${data.ssh ? `<h2>SSH Access</h2><pre><code>${data.ssh}</code></pre>` : ''}
+            ${data.warn ? `<div class="warning glass server-warning">${escapeHtml(data.warn)}</div>` : ''}
+            ${data.ssh ? `<h2>SSH Access</h2><pre><code>${escapeHtml(data.ssh)}</code></pre>` : ''}
 
             ${data.ports ? `
                 <h2>Network Configuration</h2>
@@ -371,22 +565,18 @@ function renderServerPage(id, container) {
                         <tr><th>Service</th><th>Port</th></tr>
                     </thead>
                     <tbody>
-                        ${data.ports.map(p => `<tr><td>${p.service}</td><td><code>${p.port}</code></td></tr>`).join('')}
+                        ${data.ports.map((port) => `<tr><td>${escapeHtml(port.service)}</td><td><code>${escapeHtml(port.port)}</code></td></tr>`).join('')}
                     </tbody>
                 </table>
             ` : ''}
 
             ${data.users ? `
                 <h2>Active Users</h2>
-                <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px;">
-                    ${data.users.map(user => `
-                        <span class="glass" style="padding: 6px 16px; border-radius: 20px; font-size: 0.85rem; color: var(--text-primary); border: 1px solid var(--glass-border);">
-                            ${user}
-                        </span>
-                    `).join('')}
+                <div class="server-user-list">
+                    ${data.users.map((user) => `<span class="glass server-user-pill">${escapeHtml(user)}</span>`).join('')}
                 </div>
             ` : ''}
-            
+
             ${data.table ? `
                 <h2>Backup Strategy</h2>
                 <table>
@@ -394,7 +584,13 @@ function renderServerPage(id, container) {
                         <tr><th>Type</th><th>Frequency</th><th>Location</th></tr>
                     </thead>
                     <tbody>
-                        ${data.table.map(row => `<tr><td>${row.type}</td><td>${row.frequency}</td><td><code>${row.location}</code></td></tr>`).join('')}
+                        ${data.table.map((row) => `
+                            <tr>
+                                <td>${escapeHtml(row.type)}</td>
+                                <td>${escapeHtml(row.frequency)}</td>
+                                <td><code>${escapeHtml(row.location)}</code></td>
+                            </tr>
+                        `).join('')}
                     </tbody>
                 </table>
             ` : ''}
@@ -402,10 +598,10 @@ function renderServerPage(id, container) {
             ${data.tools ? `
                 <h2>Monitoring Tools</h2>
                 <div class="grid-container">
-                    ${data.tools.map(tool => `
+                    ${data.tools.map((tool) => `
                         <div class="service-card glass">
-                            <div class="card-title">${tool.name}</div>
-                            <div class="card-desc">${tool.desc}</div>
+                            <div class="card-title">${escapeHtml(tool.name)}</div>
+                            <div class="card-desc">${escapeHtml(tool.desc)}</div>
                         </div>
                     `).join('')}
                 </div>
@@ -413,10 +609,10 @@ function renderServerPage(id, container) {
 
             ${data.items ? `
                 <h2>Useful Commands</h2>
-                ${data.items.map(item => `
-                    <div style="margin-bottom: 24px">
-                        <div style="font-weight: 600; margin-bottom: 8px">${item.desc}</div>
-                        <pre><code>${item.cmd}</code></pre>
+                ${data.items.map((item) => `
+                    <div class="server-command">
+                        <div class="server-command-label">${escapeHtml(item.desc)}</div>
+                        <pre><code>${escapeHtml(item.cmd)}</code></pre>
                     </div>
                 `).join('')}
             ` : ''}
@@ -425,15 +621,333 @@ function renderServerPage(id, container) {
 }
 
 function renderGenericPage(id, container) {
-    const item = appData?.sidebarData?.find(d => d.id === id);
+    const item = state.appData?.sidebarData?.find((entry) => entry.id === id);
     container.innerHTML = `
         <div class="markdown-body">
-            <h1>${item?.title || id}</h1>
-            <p>Section details are coming soon...</p>
-            <div class="glass" style="padding: 40px; text-align: center; border-radius: 20px;">
-                <span style="font-size: 3rem">🚧</span>
-                <h3>Maintenance Mode</h3>
+            <h1>${escapeHtml(item?.title || id)}</h1>
+            <p>Section details are coming soon.</p>
+            <div class="glass generic-state">
+                <span class="generic-state-icon">Maintenance Mode</span>
+                <h3>Documentation stub</h3>
             </div>
         </div>
     `;
+}
+
+function openSearch() {
+    state.searchOpen = true;
+    const palette = document.querySelector('#command-palette');
+    if (palette) {
+        palette.classList.remove('hidden');
+    }
+
+    const input = document.querySelector('#search-input');
+    if (input) {
+        input.value = '';
+        input.focus();
+    }
+
+    performSearch('');
+}
+
+function closeSearch() {
+    state.searchOpen = false;
+    const palette = document.querySelector('#command-palette');
+    if (palette) {
+        palette.classList.add('hidden');
+    }
+}
+
+function performSearch(query) {
+    const resultsContainer = document.querySelector('#search-results');
+    if (!resultsContainer || !state.appData) {
+        return;
+    }
+
+    const lowered = query.toLowerCase();
+    const allItems = [
+        ...state.appData.sidebarData,
+        ...state.appData.serviceCards.flatMap((group) =>
+            group.tools.map((tool) => ({ ...tool, id: tool.link.replace('#', '') }))
+        ),
+        ...Object.keys(state.docsData).map((key) => ({
+            title: state.docsData[key].title,
+            id: `doc-${key}`,
+            desc: 'Internal document'
+        }))
+    ];
+
+    const filtered = allItems.filter((item) =>
+        item.title?.toLowerCase().includes(lowered)
+        || item.name?.toLowerCase().includes(lowered)
+        || item.desc?.toLowerCase().includes(lowered)
+    ).slice(0, 8);
+
+    resultsContainer.innerHTML = filtered.map((item) => `
+        <button class="search-item" data-section-target="${item.id}">
+            <span class="search-item-title">${escapeHtml(item.title || item.name)}</span>
+            <span class="search-item-snippet">${escapeHtml(item.desc || 'Internal document')}</span>
+        </button>
+    `).join('');
+}
+
+function openToolModal(toolName, imgSrc) {
+    const modal = document.querySelector('#tool-modal');
+    if (!modal || !state.appData) {
+        return;
+    }
+
+    const nameEl = document.querySelector('#modal-tool-name');
+    const imgEl = document.querySelector('#modal-tool-img');
+    const descEl = document.querySelector('#modal-tool-desc');
+    if (!nameEl || !imgEl || !descEl) {
+        return;
+    }
+
+    nameEl.textContent = toolName;
+    imgEl.src = imgSrc;
+    imgEl.alt = toolName;
+    descEl.textContent = state.appData.toolDetails[toolName] || 'Specific information about this tool will be enhanced later.';
+    modal.classList.remove('hidden');
+}
+
+function closeToolModal() {
+    const modal = document.querySelector('#tool-modal');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+}
+
+function handleHashChange() {
+    if (getCurrentPath() !== ROUTES.home || !state.session) {
+        return;
+    }
+
+    state.currentSection = getSectionFromHash();
+    renderSidebar();
+    renderContent(state.currentSection);
+}
+
+async function handleClick(event) {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) {
+        return;
+    }
+
+    const themeToggleClicked = target.closest('[data-theme-toggle]');
+    if (themeToggleClicked) {
+        return;
+    }
+
+    const searchBackdrop = target.id === 'command-palette';
+    if (searchBackdrop) {
+        closeSearch();
+        return;
+    }
+
+    const toolBackdrop = target.id === 'tool-modal';
+    if (toolBackdrop) {
+        closeToolModal();
+        return;
+    }
+
+    const actionNode = target.closest('[data-action]');
+    if (actionNode instanceof HTMLElement) {
+        const action = actionNode.dataset.action;
+
+        if (action === 'github-login') {
+            event.preventDefault();
+            await signInWithGithub();
+            return;
+        }
+
+        if (action === 'sign-out') {
+            event.preventDefault();
+            state.flash = '';
+            if (supabase) {
+                await supabase.auth.signOut({ scope: 'local' });
+            }
+            return;
+        }
+
+        if (action === 'open-search') {
+            event.preventDefault();
+            openSearch();
+            return;
+        }
+
+        if (action === 'close-tool-modal') {
+            event.preventDefault();
+            closeToolModal();
+            return;
+        }
+    }
+
+    const sectionLink = target.closest('[data-section]');
+    if (sectionLink instanceof HTMLElement) {
+        const section = sectionLink.dataset.section;
+        if (section) {
+            state.currentSection = section;
+            renderSidebar();
+            renderContent(section);
+        }
+        return;
+    }
+
+    const searchTarget = target.closest('[data-section-target]');
+    if (searchTarget instanceof HTMLElement) {
+        const section = searchTarget.dataset.sectionTarget;
+        if (section) {
+            state.currentSection = section;
+            window.location.hash = section;
+            closeSearch();
+        }
+        return;
+    }
+
+    const toolCard = target.closest('[data-tool-name]');
+    if (toolCard instanceof HTMLElement) {
+        const toolName = toolCard.dataset.toolName;
+        const toolImg = toolCard.dataset.toolImg;
+        if (toolName && toolImg) {
+            openToolModal(toolName, toolImg);
+        }
+    }
+}
+
+function handleChange(event) {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement)) {
+        return;
+    }
+
+    if (target.matches('[data-theme-toggle]')) {
+        applyTheme(target.checked ? 'dark' : 'light');
+    }
+}
+
+function handleInput(event) {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement)) {
+        return;
+    }
+
+    if (target.id === 'search-input') {
+        performSearch(target.value);
+    }
+}
+
+function handleKeydown(event) {
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k' && state.session && getCurrentPath() === ROUTES.home) {
+        event.preventDefault();
+        openSearch();
+        return;
+    }
+
+    if (event.key === 'Escape') {
+        closeSearch();
+        closeToolModal();
+    }
+}
+
+async function signInWithGithub() {
+    if (!supabase) {
+        state.flash = 'Supabase is not configured yet.';
+        renderRoute();
+        return;
+    }
+
+    state.flash = '';
+    renderRoute();
+
+    const scopes = githubOrg ? 'read:org' : undefined;
+    const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'github',
+        options: {
+            redirectTo: `${window.location.origin}${ROUTES.auth}`,
+            scopes
+        }
+    });
+
+    if (error) {
+        console.error('GitHub sign-in failed:', error);
+        state.flash = 'GitHub sign-in could not be started.';
+        renderRoute();
+    }
+}
+
+function navigateTo(path, options = {}) {
+    const normalized = normalizePath(path);
+    const current = getCurrentPath();
+    const targetUrl = options.hash ? `${normalized}${options.hash}` : normalized;
+    if (targetUrl === `${window.location.pathname}${window.location.hash}`) {
+        renderRoute();
+        return;
+    }
+
+    const method = options.replace ? 'replaceState' : 'pushState';
+    window.history[method]({}, '', targetUrl);
+    renderRoute();
+}
+
+function getCurrentPath() {
+    return normalizePath(window.location.pathname);
+}
+
+function normalizePath(pathname) {
+    if (!pathname || pathname === '/') {
+        return '/';
+    }
+
+    return pathname.replace(/\/+$/, '') || '/';
+}
+
+function getSectionFromHash() {
+    return window.location.hash.slice(1) || 'overview';
+}
+
+function getInitialSection() {
+    const hash = window.location.hash.slice(1);
+    if (!hash || isAuthCallbackHash(hash)) {
+        return 'overview';
+    }
+
+    return hash;
+}
+
+function isAuthCallbackHash(hash) {
+    return hash.startsWith('access_token=')
+        || hash.startsWith('refresh_token=')
+        || hash.startsWith('error=')
+        || hash.startsWith('error_code=')
+        || hash.startsWith('token_type=');
+}
+
+function applyTheme(theme) {
+    const normalized = theme === 'dark' ? 'dark' : 'light';
+    document.body.className = normalized;
+    localStorage.setItem('theme', normalized);
+    syncThemeControls();
+}
+
+function syncThemeControls() {
+    const isDark = document.body.classList.contains('dark');
+    document.querySelectorAll('[data-theme-toggle]').forEach((input) => {
+        input.checked = isDark;
+    });
+}
+
+function escapeHtml(value) {
+    return String(value)
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#39;');
+}
+
+function delay(ms) {
+    return new Promise((resolve) => {
+        window.setTimeout(resolve, ms);
+    });
 }

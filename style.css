@@ -10,6 +10,11 @@
     --text-primary-light: #1a1a1a;
     --text-secondary-light: #5e5e5e;
     --card-shadow-light: 0 4px 24px -1px rgba(0, 0, 0, 0.1);
+    --markdown-table-bg-light: rgba(255, 255, 255, 0.48);
+    --markdown-table-header-bg-light: rgba(255, 255, 255, 0.7);
+    --markdown-inline-code-bg-light: rgba(255, 255, 255, 0.42);
+    --markdown-pre-bg-light: rgba(255, 255, 255, 0.62);
+    --markdown-pre-border-light: rgba(120, 160, 200, 0.22);
     
     /* Dark Mode Tokens */
     --glass-bg-dark: rgba(0, 0, 0, 0.5);
@@ -17,6 +22,11 @@
     --text-primary-dark: #ffffff;
     --text-secondary-dark: #adadad;
     --card-shadow-dark: 0 4px 24px -1px rgba(0, 0, 0, 0.5);
+    --markdown-table-bg-dark: rgba(0, 0, 0, 0.2);
+    --markdown-table-header-bg-dark: rgba(255, 255, 255, 0.05);
+    --markdown-inline-code-bg-dark: rgba(255, 255, 255, 0.1);
+    --markdown-pre-bg-dark: rgba(0, 0, 0, 0.3);
+    --markdown-pre-border-dark: var(--glass-border-dark);
 
     --font-family: 'Inter', 'Segoe UI Variable', system-ui, -apple-system, sans-serif;
     --transition-speed: 0.3s;
@@ -28,6 +38,11 @@ body.light {
     --text-primary: var(--text-primary-light);
     --text-secondary: var(--text-secondary-light);
     --card-shadow: var(--card-shadow-light);
+    --markdown-table-bg: var(--markdown-table-bg-light);
+    --markdown-table-header-bg: var(--markdown-table-header-bg-light);
+    --markdown-inline-code-bg: var(--markdown-inline-code-bg-light);
+    --markdown-pre-bg: var(--markdown-pre-bg-light);
+    --markdown-pre-border: var(--markdown-pre-border-light);
     background-color: var(--bg-light);
     color: var(--text-primary);
 }
@@ -38,6 +53,11 @@ body.dark {
     --text-primary: var(--text-primary-dark);
     --text-secondary: var(--text-secondary-dark);
     --card-shadow: var(--card-shadow-dark);
+    --markdown-table-bg: var(--markdown-table-bg-dark);
+    --markdown-table-header-bg: var(--markdown-table-header-bg-dark);
+    --markdown-inline-code-bg: var(--markdown-inline-code-bg-dark);
+    --markdown-pre-bg: var(--markdown-pre-bg-dark);
+    --markdown-pre-border: var(--markdown-pre-border-dark);
     background-color: var(--bg-dark);
     color: var(--text-primary);
 }
@@ -484,7 +504,7 @@ kbd {
     margin: 24px 0;
     border-radius: 12px;
     overflow: hidden;
-    background: rgba(0,0,0,0.2);
+    background: var(--markdown-table-bg);
 }
 
 .markdown-body th, .markdown-body td {
@@ -493,22 +513,22 @@ kbd {
     border-bottom: 1px solid var(--glass-border);
 }
 
-.markdown-body th { background: rgba(255,255,255,0.05); font-weight: 600; }
+.markdown-body th { background: var(--markdown-table-header-bg); font-weight: 600; }
 
 .markdown-body code {
-    background: rgba(255,255,255,0.1);
+    background: var(--markdown-inline-code-bg);
     padding: 2px 6px;
     border-radius: 4px;
     font-size: 0.9em;
 }
 
 .markdown-body pre {
-    background: rgba(0,0,0,0.3);
+    background: var(--markdown-pre-bg);
     padding: 20px;
     border-radius: 12px;
     overflow-x: auto;
     margin: 24px 0;
-    border: 1px solid var(--glass-border);
+    border: 1px solid var(--markdown-pre-border);
 }
 
 .markdown-body pre code {

@@ -20,6 +20,7 @@ const state = {
     authReady: false,
     flash: '',
     searchOpen: false,
+    sidebarOpen: false,
     authCheckId: 0
 };
 
@@ -361,7 +362,8 @@ function renderAppView() {
 
     return `
         <div class="app-layout">
-            <aside class="sidebar glass" id="sidebar">
+            <aside class="sidebar glass ${state.sidebarOpen ? 'sidebar-open' : ''}" id="sidebar">
+                <button class="sidebar-close glass" data-action="close-sidebar" aria-label="Close menu">×</button>
                 <div class="sidebar-header">
                     <div class="logo">
                         <img src="${assetUrl('media/Iprism Icons/Icon-iOS-Default-1024x1024@1x.png')}" alt="iPRISM Logo" style="height: 38px; width: auto;">
@@ -381,6 +383,13 @@ function renderAppView() {
 
             <main class="content-area">
                 <header class="top-bar">
+                    <div class="mobile-nav-trigger">
+                        <button class="hamburger-menu glass" data-action="open-sidebar" aria-label="Open menu">
+                            <span></span>
+                            <span></span>
+                            <span></span>
+                        </button>
+                    </div>
                     <div class="search-container glass" id="search-trigger" data-action="open-search">
                         <span class="search-icon"></span>
                         <span class="search-placeholder">Search documentation...</span>
@@ -397,6 +406,8 @@ function renderAppView() {
                 <div class="scroll-container" id="main-content"></div>
             </main>
         </div>
+
+        <div class="sidebar-overlay ${state.sidebarOpen ? 'visible' : ''}" data-action="close-sidebar"></div>
 
         <div id="command-palette" class="modal-overlay ${state.searchOpen ? '' : 'hidden'}">
             <div class="modal-content glass">
@@ -766,6 +777,7 @@ function handleHashChange() {
     }
 
     state.currentSection = getSectionFromHash();
+    toggleSidebar(false);
     renderSidebar();
     renderContent(state.currentSection);
 }
@@ -796,6 +808,18 @@ async function handleClick(event) {
     const actionNode = target.closest('[data-action]');
     if (actionNode instanceof HTMLElement) {
         const action = actionNode.dataset.action;
+
+        if (action === 'open-sidebar') {
+            event.preventDefault();
+            toggleSidebar(true);
+            return;
+        }
+
+        if (action === 'close-sidebar') {
+            event.preventDefault();
+            toggleSidebar(false);
+            return;
+        }
 
         if (action === 'github-login') {
             event.preventDefault();
@@ -1039,4 +1063,16 @@ function stripBasePath(path) {
 
 function shouldShowAuthLoading() {
     return isAuthCallbackHash(window.location.hash.slice(1));
+}
+
+function toggleSidebar(open) {
+    state.sidebarOpen = open;
+    const sidebar = document.querySelector('#sidebar');
+    const overlay = document.querySelector('.sidebar-overlay');
+    if (sidebar) {
+        sidebar.classList.toggle('sidebar-open', open);
+    }
+    if (overlay) {
+        overlay.classList.toggle('visible', open);
+    }
 }

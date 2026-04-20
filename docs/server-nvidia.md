@@ -2,30 +2,29 @@
 
 ## General Information
 
-* **IP Address:** `TBD`
-* **Hostname:** `TBD`
+* **IP Address:** `195.251.75.17`
+* **Hostname:** `N/A`
 * **Access Level:** External (restricted via SSH)
 
 
 ## Specifications
 
-* **CPU:** `TBD`
+* **CPU:** `Intel(R) Xeon(R) W-2235 CPU @ 3.80GHz`
 * **GPU:** ` RTX 4090`
-* **RAM:** `TBD`
-* **Storage:** `TBD`
+* **RAM:** `123 Gb`
+* **Storage:** `5.5 TB`
 * **OS:** `Ubuntu 22.04 LTS`
-* **CUDA Version:** `TBD`
-* **Docker:** `Installed / Not Installed`
+* **CUDA Version:** `12.4`
+* **Docker:** `Installed`
 
 
 ## SSH Access
 
 ```bash
-ssh <username>@<ip_address> -p <port>
+ssh <username>@195.251.75.17 -p <port>
 ```
 
-* **Default Port:** `TBD`
-* **Authentication:** Password
+* **Authentication:** Password Based
 
 
 ## Network Configuration
@@ -48,14 +47,14 @@ ssh <username>@<ip_address> -p <port>
 
 | Port | Service | Description |
 | ---- | ------- | ----------- |
-| TBD  | TBD     | TBD         |
+| N/A  | N/A     | N/A         |
 
 
 ## Running Services / Containers
 
 | Service Name | Port | Description |
 | ------------ | ---- | ----------- |
-| TBD          | TBD  | TBD         |
+| N/A          | N/A  | N/A         |
 
 
 ## Important Storage Structures

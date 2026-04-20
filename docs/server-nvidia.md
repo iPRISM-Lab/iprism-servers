@@ -3,7 +3,7 @@
 ## General Information
 
 * **IP Address:** `195.251.75.17`
-* **Hostname:** `N/A`
+* **Hostname:** `iprism-nvidia`
 * **Access Level:** External (restricted via SSH)
 
 

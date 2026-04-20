@@ -20,6 +20,8 @@ const state = {
     authReady: false,
     flash: '',
     searchOpen: false,
+    searchResults: [],
+    searchSelectedIndex: -1,
     sidebarOpen: false,
     authCheckId: 0
 };
@@ -694,6 +696,7 @@ function renderGenericPage(id, container) {
 
 function openSearch() {
     state.searchOpen = true;
+    state.searchSelectedIndex = -1;
     const palette = document.querySelector('#command-palette');
     if (palette) {
         palette.classList.remove('hidden');
@@ -710,6 +713,8 @@ function openSearch() {
 
 function closeSearch() {
     state.searchOpen = false;
+    state.searchResults = [];
+    state.searchSelectedIndex = -1;
     const palette = document.querySelector('#command-palette');
     if (palette) {
         palette.classList.add('hidden');
@@ -743,12 +748,49 @@ function performSearch(query) {
         || item.desc?.toLowerCase().includes(lowered)
     ).slice(0, 8);
 
+    state.searchResults = filtered;
+    state.searchSelectedIndex = filtered.length ? 0 : -1;
+
     resultsContainer.innerHTML = filtered.map((item) => `
-        <button class="search-item" data-section-target="${item.id}">
+        <button class="search-item ${state.searchSelectedIndex === filtered.indexOf(item) ? 'selected' : ''}" data-section-target="${item.id}">
             <span class="search-item-title">${escapeHtml(item.title || item.name)}</span>
             <span class="search-item-snippet">${escapeHtml(item.desc || 'Internal document')}</span>
         </button>
     `).join('');
+}
+
+function updateSearchSelection(nextIndex) {
+    const items = Array.from(document.querySelectorAll('.search-item'));
+    if (!items.length) {
+        state.searchSelectedIndex = -1;
+        return;
+    }
+
+    const normalizedIndex = ((nextIndex % items.length) + items.length) % items.length;
+    state.searchSelectedIndex = normalizedIndex;
+
+    items.forEach((item, index) => {
+        item.classList.toggle('selected', index === normalizedIndex);
+    });
+
+    items[normalizedIndex].scrollIntoView({
+        block: 'nearest'
+    });
+}
+
+function activateSelectedSearchResult() {
+    if (state.searchSelectedIndex < 0 || state.searchSelectedIndex >= state.searchResults.length) {
+        return;
+    }
+
+    const selected = state.searchResults[state.searchSelectedIndex];
+    if (!selected?.id) {
+        return;
+    }
+
+    state.currentSection = selected.id;
+    window.location.hash = selected.id;
+    closeSearch();
 }
 
 function openToolModal(toolName, imgSrc) {
@@ -913,6 +955,26 @@ function handleKeydown(event) {
         event.preventDefault();
         openSearch();
         return;
+    }
+
+    if (state.searchOpen) {
+        if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            updateSearchSelection(state.searchSelectedIndex + 1);
+            return;
+        }
+
+        if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            updateSearchSelection(state.searchSelectedIndex - 1);
+            return;
+        }
+
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            activateSelectedSearchResult();
+            return;
+        }
     }
 
     if (event.key === 'Escape') {

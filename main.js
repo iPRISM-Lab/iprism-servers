@@ -548,13 +548,21 @@ function renderDashboard(container) {
         <div class="grid-section">
             <h3 class="nav-group-title dashboard-group-title">${escapeHtml(group.category)}</h3>
             <div class="grid-container">
-                ${group.tools.map((tool) => `
+                ${group.tools.map((tool) => {
+                    const reference = getToolReference(tool);
+                    return `
                     <div class="service-card glass tool-card" data-tool-name="${escapeHtml(tool.name)}" data-tool-img="${escapeHtml(tool.img)}">
+                        ${reference ? `
+                            <a href="${escapeHtml(reference.href)}" class="tool-card-link" data-tool-link="${escapeHtml(reference.href)}" aria-label="Open ${escapeHtml(reference.label.toLowerCase())} reference for ${escapeHtml(tool.name)}">
+                                ${escapeHtml(reference.label)}
+                            </a>
+                        ` : ''}
                         <img src="${escapeHtml(tool.img)}" class="card-icon" alt="${escapeHtml(tool.name)}">
                         <div class="card-title">${escapeHtml(tool.name)}</div>
                         <div class="card-desc">${escapeHtml(tool.desc)}</div>
                     </div>
-                `).join('')}
+                `;
+                }).join('')}
             </div>
         </div>
     `).join('');
@@ -731,7 +739,16 @@ function performSearch(query) {
     const allItems = [
         ...state.appData.sidebarData,
         ...state.appData.serviceCards.flatMap((group) =>
-            group.tools.map((tool) => ({ ...tool, id: tool.link.replace('#', '') }))
+            group.tools
+                .map((tool) => {
+                    const reference = getToolReference(tool);
+                    if (!reference?.href?.startsWith('#')) {
+                        return null;
+                    }
+
+                    return { ...tool, id: reference.href.replace('#', '') };
+                })
+                .filter(Boolean)
         ),
         ...Object.keys(state.docsData)
             .filter((key) => !state.appData.sidebarData.some((item) => item.id === key) && key !== 'server-nvidia' && key !== 'server-amd')
@@ -791,6 +808,24 @@ function activateSelectedSearchResult() {
     state.currentSection = selected.id;
     window.location.hash = selected.id;
     closeSearch();
+}
+
+function getToolReference(tool) {
+    if (tool?.handbook?.href) {
+        return {
+            href: tool.handbook.href,
+            label: tool.handbook.label || 'Handbook'
+        };
+    }
+
+    if (tool?.link) {
+        return {
+            href: tool.link,
+            label: 'Handbook'
+        };
+    }
+
+    return null;
 }
 
 function openToolModal(toolName, imgSrc) {
@@ -914,6 +949,16 @@ async function handleClick(event) {
             state.currentSection = section;
             window.location.hash = section;
             closeSearch();
+        }
+        return;
+    }
+
+    const toolLink = target.closest('[data-tool-link]');
+    if (toolLink instanceof HTMLAnchorElement) {
+        const href = toolLink.getAttribute('href');
+        if (href?.startsWith('#')) {
+            event.preventDefault();
+            window.location.hash = href.slice(1);
         }
         return;
     }

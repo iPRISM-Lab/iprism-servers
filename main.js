@@ -373,6 +373,13 @@ function renderAppView() {
 
                 <nav class="sidebar-nav" id="sidebar-nav"></nav>
 
+                <div class="sidebar-user-info glass mobile-only">
+                    <div class="user-badge glass">
+                        <span class="user-name">${escapeHtml(userName)}</span>
+                    </div>
+                    <button class="top-action-button glass" data-action="sign-out" style="width: 100%; margin-top: 10px;">Sign out</button>
+                </div>
+
                 <div class="sidebar-footer">
                     <div class="theme-switch-wrapper">
                         <span class="theme-label">Dark Mode</span>

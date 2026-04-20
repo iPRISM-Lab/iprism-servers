@@ -262,6 +262,28 @@ body.dark .bloom-background {
 
 .sidebar-footer { padding-top: 20px; border-top: 1px solid var(--glass-border); }
 
+.sidebar-user-info {
+    margin-top: auto;
+    margin-bottom: 24px;
+    padding: 16px;
+    border-radius: 12px;
+    display: none;
+    flex-direction: column;
+    gap: 8px;
+    text-align: center;
+}
+
+.sidebar-user-info .user-badge {
+    border: none;
+    background: transparent;
+    padding: 10px 0;
+}
+
+.sidebar-user-info .user-name {
+    font-weight: 700;
+    font-size: 1.1rem;
+}
+
 .theme-switch-wrapper {
     display: flex;
     align-items: center;
@@ -1039,6 +1061,14 @@ body.light .auth-alert-error {
     .search-container {
         flex: 1;
         width: auto;
+    }
+
+    .top-actions {
+        display: none;
+    }
+
+    .sidebar-user-info {
+        display: flex;
     }
 
     .search-shortcut { display: none; }

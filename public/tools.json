@@ -74,7 +74,7 @@
           "name": "Grafana",
           "desc": "Resource Monitoring Dashboard",
           "img": "media/grafana.png",
-          "link": ""
+          "link": "#doc-grafana"
         },
         {
           "name": "InfluxDB",

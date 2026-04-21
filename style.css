@@ -1164,3 +1164,41 @@ body.light .auth-alert-error {
     }
     .markdown-body { padding: 24px 18px; }
 }
+
+/* Header Monitor Icon */
+.markdown-body h1 {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.header-monitor-btn {
+    width: 40px;
+    height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border-radius: 8px;
+    color: var(--accent);
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 12px rgba(0, 120, 212, 0.1);
+    margin-bottom: 2px; /* Small alignment adjustment */
+}
+
+.header-monitor-btn:hover {
+    background: var(--accent);
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 120, 212, 0.3);
+}
+
+.header-monitor-btn:active {
+    transform: translateY(0) scale(0.95);
+}
+
+.header-monitor-btn svg {
+    stroke-width: 2.5;
+}

@@ -646,6 +646,56 @@ body.light kbd {
 }
 
 .markdown-body h1 { font-size: 2.5rem; margin-bottom: 24px; }
+.markdown-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 14px;
+    margin-bottom: 24px;
+}
+.markdown-title-row h1 {
+    margin-bottom: 0;
+}
+.monitor-link-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    padding: 0;
+    border-radius: 14px;
+    border: 1px solid var(--glass-border);
+    color: var(--text-primary);
+    text-decoration: none;
+    transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+    background:
+        linear-gradient(135deg, rgba(0, 120, 212, 0.18), rgba(0, 196, 255, 0.08)),
+        var(--glass-bg);
+    box-shadow: 0 8px 24px rgba(0, 120, 212, 0.12);
+}
+.monitor-link-button:hover {
+    border-color: var(--accent);
+    transform: translateY(-1px);
+}
+.monitor-link-button-icon {
+    width: 100%;
+    height: 100%;
+    border-radius: inherit;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(0, 120, 212, 0.08));
+    color: var(--accent);
+}
+.monitor-link-button-icon svg {
+    width: 20px;
+    height: 20px;
+    stroke: currentColor;
+    fill: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
 .markdown-body h2 { font-size: 1.75rem; margin: 32px 0 16px; border-bottom: 1px solid var(--glass-border); padding-bottom: 8px; }
 .markdown-body p { margin-bottom: 16px; line-height: 1.7; color: var(--text-secondary); }
 .markdown-body table {
@@ -1163,6 +1213,15 @@ body.light .auth-alert-error {
         grid-template-columns: 1fr;
     }
     .markdown-body { padding: 24px 18px; }
+    .markdown-title-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 14px;
+    }
+    .monitor-link-button {
+        width: 46px;
+        height: 46px;
+    }
 }
 
 /* Embedded Grafana */

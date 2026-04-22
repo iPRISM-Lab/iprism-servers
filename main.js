@@ -579,10 +579,12 @@ function renderMarkdownPage(docId, container) {
     }
 
     let rendered = renderMarkdownWithCallouts(doc.content);
-    
-    // Inject embedded Grafana iframe under the title
+
     if (docId === 'amd-server') {
         const grafanaUrl = (import.meta.env.VITE_GRAFANA_URL || '').trim();
+
+        // TODO: iframe commented out until grafana is exposed with https and not http
+        /*
         const embeddedContent = grafanaUrl
             ? `
                 <div class="embedded-grafana-wrapper glass">
@@ -595,6 +597,24 @@ function renderMarkdownPage(docId, container) {
                 </div>
             `;
         rendered = rendered.replace('</h1>', `</h1>${embeddedContent}`);
+        */
+
+        const monitorAction = grafanaUrl
+            ? `
+                <a class="monitor-link-button glass" href="${escapeHtml(grafanaUrl)}" target="_blank" rel="noopener noreferrer" aria-label="Open AMD monitoring dashboard in a new tab" title="Open AMD monitoring dashboard">
+                    <span class="monitor-link-button-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" focusable="false">
+                            <path d="M13 2 6 13h4l-1 9 9-13h-4l1-7Z" />
+                        </svg>
+                    </span>
+                </a>
+            `
+            : '';
+
+        rendered = rendered.replace(
+            '<h1>AMD Server</h1>',
+            `<div class="markdown-title-row"><h1>AMD Server</h1>${monitorAction}</div>`
+        );
     }
 
     container.innerHTML = `
@@ -606,66 +626,6 @@ function renderMarkdownPage(docId, container) {
     container.querySelectorAll('pre code').forEach((block) => {
         hljs.highlightElement(block);
     });
-
-    if (docId === 'amd-server') {
-        attachGrafanaIframeDiagnostics(container);
-    }
-}
-
-function attachGrafanaIframeDiagnostics(container) {
-    const iframe = container.querySelector('.embedded-grafana-wrapper iframe');
-    const grafanaUrl = (import.meta.env.VITE_GRAFANA_URL || '').trim();
-
-    console.log('[grafana] AMD page render', {
-        envUrl: grafanaUrl || '(missing)',
-        currentUrl: window.location.href,
-        userAgent: window.navigator.userAgent
-    });
-
-    if (!iframe) {
-        console.warn('[grafana] iframe was not rendered');
-        return;
-    }
-
-    console.log('[grafana] iframe inserted', {
-        src: iframe.getAttribute('src'),
-        width: iframe.getAttribute('width'),
-        height: iframe.getAttribute('height')
-    });
-
-    iframe.addEventListener('load', () => {
-        console.log('[grafana] iframe load event fired', {
-            src: iframe.src
-        });
-
-        try {
-            const childLocation = iframe.contentWindow?.location?.href;
-            console.log('[grafana] same-origin iframe location', childLocation);
-        } catch (error) {
-            console.log('[grafana] cross-origin iframe loaded; content is not directly inspectable', {
-                message: error instanceof Error ? error.message : String(error)
-            });
-        }
-    }, { once: true });
-
-    iframe.addEventListener('error', () => {
-        console.error('[grafana] iframe error event fired', {
-            src: iframe.src
-        });
-    }, { once: true });
-
-    window.setTimeout(() => {
-        const rect = iframe.getBoundingClientRect();
-        console.log('[grafana] iframe post-render check', {
-            src: iframe.src,
-            rect: {
-                width: rect.width,
-                height: rect.height,
-                top: rect.top,
-                left: rect.left
-            }
-        });
-    }, 3000);
 }
 
 function renderMarkdownWithCallouts(content) {

@@ -582,13 +582,19 @@ function renderMarkdownPage(docId, container) {
     
     // Inject embedded Grafana iframe under the title
     if (docId === 'amd-server') {
-        const grafanaUrl = import.meta.env.VITE_GRAFANA_URL;
-        const embeddedIframe = `
-            <div class="embedded-grafana-wrapper glass">
-                <iframe src="${grafanaUrl}" frameborder="0" width="100%" height="700px" allowtransparency="true" style="border: none; border-radius: 12px; width: 100%; height: 700px;"></iframe>
-            </div>
-        `;
-        rendered = rendered.replace('</h1>', `</h1>${embeddedIframe}`);
+        const grafanaUrl = (import.meta.env.VITE_GRAFANA_URL || '').trim();
+        const embeddedContent = grafanaUrl
+            ? `
+                <div class="embedded-grafana-wrapper glass">
+                    <iframe src="${escapeHtml(grafanaUrl)}" frameborder="0" width="100%" height="700px" allowtransparency="true" style="border: none; border-radius: 12px; width: 100%; height: 700px;"></iframe>
+                </div>
+            `
+            : `
+                <div class="embedded-grafana-wrapper glass">
+                    <p>Grafana embed is not configured for this deployment.</p>
+                </div>
+            `;
+        rendered = rendered.replace('</h1>', `</h1>${embeddedContent}`);
     }
 
     container.innerHTML = `

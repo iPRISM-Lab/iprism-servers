@@ -447,6 +447,7 @@ function renderAppView() {
                 </div>
             </div>
         </div>
+
     `;
 }
 
@@ -579,16 +580,15 @@ function renderMarkdownPage(docId, container) {
 
     let rendered = renderMarkdownWithCallouts(doc.content);
     
-    // Inject minimal monitor icon next to the AMD Server header
+    // Inject embedded Grafana iframe under the title
     if (docId === 'amd-server') {
-        const monitorIcon = `
-            <button class="header-monitor-btn glass" data-action="open-grafana" title="Monitor Server Activity">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
-                </svg>
-            </button>
+        const grafanaUrl = import.meta.env.VITE_GRAFANA_URL;
+        const embeddedIframe = `
+            <div class="embedded-grafana-wrapper glass">
+                <iframe src="${grafanaUrl}" frameborder="0" width="100%" height="700px" allowtransparency="true" style="border: none; border-radius: 12px; width: 100%; height: 700px;"></iframe>
+            </div>
         `;
-        rendered = rendered.replace('</h1>', ` ${monitorIcon}</h1>`);
+        rendered = rendered.replace('</h1>', `</h1>${embeddedIframe}`);
     }
 
     container.innerHTML = `
@@ -942,21 +942,6 @@ async function handleClick(event) {
         if (action === 'close-tool-modal') {
             event.preventDefault();
             closeToolModal();
-            return;
-        }
-
-        if (action === 'open-grafana') {
-            event.preventDefault();
-            const baseUrl = import.meta.env.VITE_GRAFANA_URL;
-            if (baseUrl) {
-                try {
-                    const url = new URL(baseUrl);
-                    url.searchParams.set('kiosk', '1');
-                    window.open(url.toString(), '_blank');
-                } catch (e) {
-                    window.open(baseUrl, '_blank');
-                }
-            }
             return;
         }
     }

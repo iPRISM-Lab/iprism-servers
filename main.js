@@ -606,6 +606,66 @@ function renderMarkdownPage(docId, container) {
     container.querySelectorAll('pre code').forEach((block) => {
         hljs.highlightElement(block);
     });
+
+    if (docId === 'amd-server') {
+        attachGrafanaIframeDiagnostics(container);
+    }
+}
+
+function attachGrafanaIframeDiagnostics(container) {
+    const iframe = container.querySelector('.embedded-grafana-wrapper iframe');
+    const grafanaUrl = (import.meta.env.VITE_GRAFANA_URL || '').trim();
+
+    console.log('[grafana] AMD page render', {
+        envUrl: grafanaUrl || '(missing)',
+        currentUrl: window.location.href,
+        userAgent: window.navigator.userAgent
+    });
+
+    if (!iframe) {
+        console.warn('[grafana] iframe was not rendered');
+        return;
+    }
+
+    console.log('[grafana] iframe inserted', {
+        src: iframe.getAttribute('src'),
+        width: iframe.getAttribute('width'),
+        height: iframe.getAttribute('height')
+    });
+
+    iframe.addEventListener('load', () => {
+        console.log('[grafana] iframe load event fired', {
+            src: iframe.src
+        });
+
+        try {
+            const childLocation = iframe.contentWindow?.location?.href;
+            console.log('[grafana] same-origin iframe location', childLocation);
+        } catch (error) {
+            console.log('[grafana] cross-origin iframe loaded; content is not directly inspectable', {
+                message: error instanceof Error ? error.message : String(error)
+            });
+        }
+    }, { once: true });
+
+    iframe.addEventListener('error', () => {
+        console.error('[grafana] iframe error event fired', {
+            src: iframe.src
+        });
+    }, { once: true });
+
+    window.setTimeout(() => {
+        const rect = iframe.getBoundingClientRect();
+        console.log('[grafana] iframe post-render check', {
+            src: iframe.src,
+            rect: {
+                width: rect.width,
+                height: rect.height,
+                top: rect.top,
+                left: rect.left
+            }
+        });
+    }, 3000);
 }
 
 function renderMarkdownWithCallouts(content) {

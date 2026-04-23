@@ -2,6 +2,7 @@
 
 ## Γενικές Πληροφορίες
 Source: https://it.uth.gr/manuals/odigies-rythmisis-e-mail#settings
+
 Η ιδρυματική διεύθυνση ηλεκτρονικού ταχυδρομείου σας είναι: `@uth.gr`
 
 **Webmail:** https://webmail.uth.gr (μπορείτε να το χρησιμοποιήσετε με οποιοδήπον browser αν δεν επιθυμείτε εφαρμογή όπως Outlook, Thunderbird, Gmail κλπ.)

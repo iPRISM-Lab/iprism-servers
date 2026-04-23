@@ -3,6 +3,7 @@
 ## General Information
 
 * **IP Address:** `195.251.75.17`
+* **Default Port:** `22`
 * **Hostname:** `iprism-nvidia`
 * **Access Level:** External (restricted via SSH)
 
@@ -21,7 +22,7 @@
 ## SSH Access
 
 ```bash
-ssh <username>@195.251.75.17 -p <port>
+ssh <username>@195.251.57.17 -p <port>
 ```
 
 * **Authentication:** Password Based

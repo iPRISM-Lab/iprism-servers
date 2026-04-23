@@ -21,8 +21,8 @@
       "type": "ops"
     },
     {
-      "id": "monitoring",
-      "title": "Monitoring",
+      "id": "logging",
+      "title": "Logging",
       "type": "ops"
     },
     {

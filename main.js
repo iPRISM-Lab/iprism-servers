@@ -632,6 +632,8 @@ function renderMarkdownPage(docId, container) {
     container.querySelectorAll('pre code').forEach((block) => {
         hljs.highlightElement(block);
     });
+
+    enhanceMarkdownCommandBlocks(container);
 }
 
 function renderMarkdownWithCallouts(content) {
@@ -644,6 +646,86 @@ function renderMarkdownWithCallouts(content) {
     );
 
     return marked.parse(normalized);
+}
+
+function enhanceMarkdownCommandBlocks(container) {
+    container.querySelectorAll('pre').forEach((pre) => {
+        const code = pre.querySelector('code');
+        if (!code || !isShellCodeBlock(code)) {
+            return;
+        }
+
+        pre.classList.add('markdown-command-block');
+
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'copy-command-button';
+        button.setAttribute('aria-label', 'Copy command to clipboard');
+        button.setAttribute('title', 'Copy command');
+        button.innerHTML = `
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M9 9a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-8a2 2 0 0 1-2-2V9Zm-6 4V5a2 2 0 0 1 2-2h8" />
+            </svg>
+        `;
+
+        const feedback = document.createElement('span');
+        feedback.className = 'copy-command-feedback';
+        feedback.setAttribute('aria-live', 'polite');
+
+        button.addEventListener('click', async () => {
+            const command = code.textContent ?? '';
+            const copied = await copyTextToClipboard(command);
+
+            button.classList.toggle('copied', copied);
+            button.setAttribute('aria-label', copied ? 'Command copied' : 'Copy failed');
+            button.setAttribute('title', copied ? 'Copied' : 'Copy failed');
+            feedback.textContent = copied ? 'Copied to clipboard' : 'Copy failed';
+            feedback.classList.add('visible');
+
+            window.setTimeout(() => {
+                button.classList.remove('copied');
+                button.setAttribute('aria-label', 'Copy command to clipboard');
+                button.setAttribute('title', 'Copy command');
+                feedback.classList.remove('visible');
+            }, 1600);
+        });
+
+        pre.appendChild(button);
+        pre.appendChild(feedback);
+    });
+}
+
+function isShellCodeBlock(codeElement) {
+    const classes = Array.from(codeElement.classList);
+    return classes.some((className) => /language-(bash|shell|sh|zsh|console|terminal)/.test(className));
+}
+
+async function copyTextToClipboard(text) {
+    try {
+        if (navigator.clipboard?.writeText) {
+            await navigator.clipboard.writeText(text);
+            return true;
+        }
+    } catch (error) {
+        console.error('Clipboard write failed:', error);
+    }
+
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.setAttribute('readonly', '');
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.select();
+
+    try {
+        return document.execCommand('copy');
+    } catch (error) {
+        console.error('Fallback copy failed:', error);
+        return false;
+    } finally {
+        document.body.removeChild(textarea);
+    }
 }
 
 function formatDocTitle(filename) {

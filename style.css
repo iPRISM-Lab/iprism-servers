@@ -7,8 +7,8 @@
     /* Light Mode Tokens */
     --glass-bg-light: rgba(255, 255, 255, 0.4);
     --glass-border-light: rgba(255, 255, 255, 0.5);
-    --text-primary-light: #1a1a1a;
-    --text-secondary-light: #5e5e5e;
+    --text-primary-light: #000000;
+    --text-secondary-light: #33485f;
     --card-shadow-light: 0 4px 24px -1px rgba(0, 0, 0, 0.1);
     --markdown-table-bg-light: rgba(255, 255, 255, 0.48);
     --markdown-table-header-bg-light: rgba(255, 255, 255, 0.7);
@@ -20,7 +20,7 @@
     --glass-bg-dark: rgba(0, 0, 0, 0.5);
     --glass-border-dark: rgba(255, 255, 255, 0.1);
     --text-primary-dark: #ffffff;
-    --text-secondary-dark: #adadad;
+    --text-secondary-dark: #cfd9e6;
     --card-shadow-dark: 0 4px 24px -1px rgba(0, 0, 0, 0.5);
     --markdown-table-bg-dark: rgba(0, 0, 0, 0.2);
     --markdown-table-header-bg-dark: rgba(255, 255, 255, 0.05);
@@ -765,6 +765,11 @@ body.light kbd {
     border: 1px solid var(--markdown-pre-border);
 }
 
+.markdown-body pre.markdown-command-block {
+    position: relative;
+    padding-right: 64px;
+}
+
 .markdown-body pre code {
     background: transparent;
     padding: 0;
@@ -776,6 +781,100 @@ body.light kbd {
 
 body.light .markdown-body pre code {
     color: #1f2328;
+}
+
+.copy-command-button {
+    position: absolute;
+    top: 14px;
+    right: 12px;
+    width: 32px;
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--glass-border);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.08);
+    color: #c9d1d9;
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04);
+    cursor: pointer;
+    transition: transform 0.18s ease, background 0.18s ease, color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.copy-command-button:hover {
+    transform: translateY(-1px);
+    background: rgba(255, 255, 255, 0.14);
+}
+
+.copy-command-button:focus-visible {
+    outline: 2px solid rgba(88, 166, 255, 0.8);
+    outline-offset: 2px;
+}
+
+.copy-command-button svg {
+    width: 16px;
+    height: 16px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.copy-command-button.copied {
+    color: #d0d7de;
+    border-color: rgba(208, 215, 222, 0.4);
+    background: rgba(208, 215, 222, 0.12);
+    box-shadow: 0 0 0 1px rgba(208, 215, 222, 0.08);
+}
+
+body.light .copy-command-button {
+    background: rgba(255, 255, 255, 0.76);
+    color: #5f6b76;
+    border-color: rgba(95, 107, 118, 0.18);
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+body.light .copy-command-button:hover {
+    background: rgba(255, 255, 255, 0.94);
+    border-color: rgba(95, 107, 118, 0.26);
+}
+
+body.light .copy-command-button.copied {
+    color: #4b5563;
+    background: rgba(226, 232, 240, 0.92);
+    border-color: rgba(148, 163, 184, 0.4);
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+}
+
+.copy-command-feedback {
+    position: absolute;
+    top: 20px;
+    right: 54px;
+    max-width: 180px;
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: rgba(10, 18, 28, 0.88);
+    color: #e6edf3;
+    font-size: 0.72rem;
+    line-height: 1;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+    opacity: 0;
+    transform: translateY(-4px);
+    pointer-events: none;
+    transition: opacity 0.16s ease, transform 0.16s ease;
+}
+
+.copy-command-feedback.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+body.light .copy-command-feedback {
+    background: rgba(255, 255, 255, 0.95);
+    color: #1f2328;
+    border: 1px solid rgba(31, 35, 40, 0.08);
 }
 
 /* Highlight.js Colors (Fluent Inspired) */
@@ -801,11 +900,12 @@ body.light .hljs-attr { color: #0550ae; }
 .markdown-body ul, .markdown-body ol {
     margin: 16px 0;
     padding-left: 24px;
-    color: var(--text-secondary);
+    color: var(--text-primary);
 }
 
 .markdown-body li {
     margin-bottom: 8px;
+    color: var(--text-primary);
 }
 
 .markdown-callout {
@@ -888,6 +988,7 @@ body.dark .markdown-callout-warning {
 .server-command-label {
     font-weight: 600;
     margin-bottom: 8px;
+    color: var(--text-primary);
 }
 
 .generic-state {

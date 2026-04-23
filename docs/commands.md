@@ -1,32 +1,33 @@
 # Useful Commands
 
+**Check NVIDIA GPU usage**
+
 ```bash
-# Check NVIDIA GPU usage
 nvidia-smi
 ```
 
+**Check AMD GPU usage**
 ```bash
-# Check AMD GPU usage
 rockm-smi
 ```
 
+**Check open ports**
 ```bash
-# Check open ports
 sudo netstat -tulnp
 ```
 
+**Docker Conteiners**
 ```bash
-# Docker containers
 docker ps
 ```
 
+**Disk usage**
 ```bash
-# Disk usage
 df -h
 ```
 
+**Active processes**
 ```bash
-# Active processes
 htop
 ```
 

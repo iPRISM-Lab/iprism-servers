@@ -167,6 +167,9 @@ body.dark .bloom-background {
     flex-direction: column;
     padding: 20px;
     transition: transform var(--transition-speed) cubic-bezier(0.4, 0, 0.2, 1);
+    max-height: 100%;
+    position: relative;
+    overflow: hidden; /* Prevent parent from scrolling, children will scroll */
 }
 
 .sidebar-close {
@@ -234,7 +237,38 @@ body.dark .bloom-background {
 .logo { color: var(--accent); }
 .app-title { font-weight: 700; font-size: 1.2rem; }
 
-.sidebar-nav { flex: 1; display: flex; flex-direction: column; gap: 24px; }
+.sidebar-nav { 
+    flex: 1; 
+    display: flex; 
+    flex-direction: column; 
+    gap: 24px; 
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-right: 8px;
+    margin-right: -8px; /* Offset padding for scrollbar */
+}
+
+/* Custom Scrollbar for Sidebar */
+.sidebar-nav::-webkit-scrollbar {
+    width: 4px;
+}
+
+.sidebar-nav::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.sidebar-nav::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 10px;
+}
+
+body.dark .sidebar-nav::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.sidebar-nav::-webkit-scrollbar-thumb:hover {
+    background: var(--accent);
+}
 .nav-group-title {
     font-size: 0.75rem;
     font-weight: 600;

@@ -375,13 +375,6 @@ function renderAppView() {
 
                 <nav class="sidebar-nav" id="sidebar-nav"></nav>
 
-                <div class="sidebar-user-info glass mobile-only">
-                    <div class="user-badge glass">
-                        <span class="user-name">${escapeHtml(userName)}</span>
-                    </div>
-                    <button class="top-action-button glass" data-action="sign-out" style="width: 100%; margin-top: 10px;">Sign out</button>
-                </div>
-
                 <div class="sidebar-footer">
                     <div class="theme-switch-wrapper">
                         <span class="theme-label">Dark Mode</span>
@@ -502,6 +495,19 @@ function renderSidebar() {
             </div>
         `;
     }
+
+    const user = state.session?.user ?? {};
+    const userName = user.user_metadata?.full_name || user.user_metadata?.user_name || user.email || 'Authenticated user';
+
+    html += `
+        <div class="sidebar-user-info mobile-only">
+            <div class="nav-group-title">User</div>
+            <div class="user-badge-mini glass">
+                <span class="user-name">${escapeHtml(userName)}</span>
+            </div>
+            <button class="sign-out-btn-mini glass" data-action="sign-out">Sign out</button>
+        </div>
+    `;
 
     nav.innerHTML = html;
 }

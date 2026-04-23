@@ -1225,6 +1225,38 @@ body.light .auth-alert-error {
 
     .sidebar-user-info {
         display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-top: 12px;
+        padding-top: 12px;
+        border-top: 1px solid var(--glass-border);
+    }
+
+    .user-badge-mini {
+        padding: 8px 12px;
+        border-radius: 8px;
+        font-size: 0.85rem;
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--text-primary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .sign-out-btn-mini {
+        padding: 8px 12px;
+        border-radius: 8px;
+        font-size: 0.85rem;
+        font-weight: 500;
+        color: var(--text-primary);
+        text-align: center;
+        width: 100%;
+        transition: all 0.2s;
+    }
+
+    .sign-out-btn-mini:active {
+        background: rgba(255, 255, 255, 0.15);
+        transform: scale(0.98);
     }
 
     .search-shortcut { display: none; }

@@ -2,16 +2,18 @@
 
 ## General Information
 
-* **IP Address:** `TBD`
-* **Hostname:** `TBD`
+* **IP Address:** `195.251.75.20`
+* **Default Port:** `22`
+* **Hostname:** `iprism-amd`
 * **Access Level:** Internal (restricted via SSH)
 
 
 ## Specifications
 
-* **CPU:** `TBD`
-* **GPU:** `TBD`
-* **RAM:** `TBD`
+* **CPU:** `AMD Ryzen Threadripper PRO 5955WX 16-Cores`
+* **GPU:** `Navi 31 [Radeon RX 7900 XT/7900 XTX/7900M]`
+* **RAM:** `251 GB`
+* **RAM Swap:** `8 GB`
 * **Storage:** `TBD`
 * **OS:** `Dual Boot on Ubuntu/Windows`
 
@@ -21,8 +23,14 @@
 ## SSH Access
 
 ```bash
-ssh <username>@<internal_ip>
+ssh <username>@195.251.75.20
 ```
+## Users
+* iprism
+* terra
+* trace
+* escort
+* ellie
 
 ## Network Configuration
 
@@ -42,16 +50,16 @@ ssh <username>@<internal_ip>
 
 ### Occupied Ports
 
-| Port | Service | Description |
-| ---- | ------- | ----------- |
-| TBD  | TBD     | TBD         |
+| Port | Service  | Description       |
+| ---- | -------- | ----------------- |
+| 3030  | GRAFANA | Server Monitoring |
 
 
 ## Running Services
 
-| Service Name | Port | Description |
-| ------------ | ---- | ----------- |
-| TBD          | TBD  | TBD         |
+| Service Name | Port | Description        |
+| ------------ | ---- | ------------------ |
+| Open Foam    | N/A  | 3+ Days for Escort |
 
 
 ## Important Storage Structure

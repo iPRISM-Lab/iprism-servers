@@ -2,8 +2,10 @@
 
 ## General Information
 
-* **IP Address:** `195.251.75.17`
-* **Default Port:** `22`
+* **IP Address:** `195.251.57.17`
+* **Default Port (VPN):** `22`
+* **Default Port (External):** `2525`
+
 * **Hostname:** `iprism-nvidia`
 * **Access Level:** External (restricted via SSH)
 
@@ -18,6 +20,8 @@
 * **CUDA Version:** `12.4`
 * **Docker:** `Installed`
 
+## Users
+* iprism
 
 ## SSH Access
 

@@ -45,7 +45,16 @@
           "name": "Portainer",
           "desc": "Container Management UI",
           "img": "media/portainer.svg",
-          "link": "#portainer"
+          "links": [
+            {
+              "label": "AMD - Handbook",
+              "href": "#doc-portainer"
+            },
+            {
+              "label": "NVIDIA Handbook",
+              "href": ""
+            }
+          ]
         },
         {
           "name": "Harbor",

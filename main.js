@@ -3,11 +3,19 @@ import { marked } from 'marked';
 import { markedHighlight } from 'marked-highlight';
 import hljs from 'highlight.js';
 
+const markdownAssetUrls = import.meta.glob('./assets/**/*', {
+    query: '?url',
+    import: 'default',
+    eager: true
+});
+
 const ROUTES = {
     auth: '/auth',
     home: '/'
 };
 
+const AMD_GRAFANA_URL = (import.meta.env.VITE_GRAFANA_URL || 'http://195.251.75.20:3030/').trim();
+const PORTAINER_AMD_URL = 'https://195.251.57.20:9443/';
 const GITHUB_API_VERSION = '2022-11-28';
 const APP_BASE_PATH = import.meta.env.BASE_URL.replace(/\/$/, '');
 const root = document.querySelector('#app-root');
@@ -557,13 +565,17 @@ function renderDashboard(container) {
             <h3 class="nav-group-title dashboard-group-title">${escapeHtml(group.category)}</h3>
             <div class="grid-container">
                 ${group.tools.map((tool) => {
-                    const reference = getToolReference(tool);
+                    const references = getToolReferences(tool);
                     return `
                     <div class="service-card glass tool-card" data-tool-name="${escapeHtml(tool.name)}" data-tool-img="${escapeHtml(tool.img)}">
-                        ${reference ? `
-                            <a href="${escapeHtml(reference.href)}" class="tool-card-link" data-tool-link="${escapeHtml(reference.href)}" aria-label="Open ${escapeHtml(reference.label.toLowerCase())} reference for ${escapeHtml(tool.name)}">
-                                ${escapeHtml(reference.label)}
-                            </a>
+                        ${references.length ? `
+                            <div class="tool-card-links">
+                                ${references.map((reference) => `
+                                    <a href="${escapeHtml(reference.href)}" class="tool-card-link" data-tool-link="${escapeHtml(reference.href)}" ${reference.external ? 'target="_blank" rel="noopener noreferrer"' : ''} aria-label="Open ${escapeHtml(reference.label.toLowerCase())} reference for ${escapeHtml(tool.name)}">
+                                        ${escapeHtml(reference.label)}
+                                    </a>
+                                `).join('')}
+                            </div>
                         ` : ''}
                         <img src="${escapeHtml(tool.img)}" class="card-icon" alt="${escapeHtml(tool.name)}">
                         <div class="card-title">${escapeHtml(tool.name)}</div>
@@ -587,15 +599,33 @@ function renderMarkdownPage(docId, container) {
 
     let rendered = renderMarkdownWithCallouts(doc.content);
 
-    if (docId === 'amd-server') {
-        const grafanaUrl = (import.meta.env.VITE_GRAFANA_URL || '').trim();
+    if (docId === 'portainer') {
+        const portainerAction = `
+            <a class="doc-action-button glass" href="${escapeHtml(PORTAINER_AMD_URL)}" target="_blank" rel="noopener noreferrer" aria-label="Open AMD Portainer in a new tab" title="Open AMD Portainer">
+                <span class="monitor-link-button-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" focusable="false">
+                        <path d="M14 3h7v7h-2V6.41l-9.29 9.3-1.42-1.42 9.3-9.29H14V3Z" />
+                        <path d="M5 5h6v2H7v10h10v-4h2v6H5V5Z" />
+                    </svg>
+                </span>
+                <span>Open Portainer</span>
+            </a>
+        `;
 
+        rendered = injectMarkdownTitleActions(
+            rendered,
+            'iprism-portainer-infrastructure-documentation-for-amd-server',
+            [portainerAction]
+        );
+    }
+
+    if (docId === 'amd-server') {
         // TODO: iframe commented out until grafana is exposed with https and not http
         /*
-        const embeddedContent = grafanaUrl
+        const embeddedContent = AMD_GRAFANA_URL
             ? `
                 <div class="embedded-grafana-wrapper glass">
-                    <iframe src="${escapeHtml(grafanaUrl)}" frameborder="0" width="100%" height="700px" allowtransparency="true" style="border: none; border-radius: 12px; width: 100%; height: 700px;"></iframe>
+                    <iframe src="${escapeHtml(AMD_GRAFANA_URL)}" frameborder="0" width="100%" height="700px" allowtransparency="true" style="border: none; border-radius: 12px; width: 100%; height: 700px;"></iframe>
                 </div>
             `
             : `
@@ -606,21 +636,32 @@ function renderMarkdownPage(docId, container) {
         rendered = rendered.replace('</h1>', `</h1>${embeddedContent}`);
         */
 
-        const monitorAction = grafanaUrl
-            ? `
-                <a class="monitor-link-button glass" href="${escapeHtml(grafanaUrl)}" target="_blank" rel="noopener noreferrer" aria-label="Open AMD monitoring dashboard in a new tab" title="Open AMD monitoring dashboard">
-                    <span class="monitor-link-button-icon" aria-hidden="true">
-                        <svg viewBox="0 0 24 24" focusable="false">
-                            <path d="M13 2 6 13h4l-1 9 9-13h-4l1-7Z" />
-                        </svg>
-                    </span>
-                </a>
-            `
-            : '';
+        const grafanaAction = `
+            <a class="doc-action-button glass" href="${escapeHtml(AMD_GRAFANA_URL)}" target="_blank" rel="noopener noreferrer" aria-label="Open AMD Grafana dashboard in a new tab" title="Open AMD Grafana">
+                <span class="monitor-link-button-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" focusable="false">
+                        <path d="M13 2 6 13h4l-1 9 9-13h-4l1-7Z" />
+                    </svg>
+                </span>
+                <span>Grafana</span>
+            </a>
+        `;
+        const portainerAction = `
+            <a class="doc-action-button glass" href="${escapeHtml(PORTAINER_AMD_URL)}" target="_blank" rel="noopener noreferrer" aria-label="Open AMD Portainer in a new tab" title="Open AMD Portainer">
+                <span class="monitor-link-button-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" focusable="false">
+                        <path d="M14 3h7v7h-2V6.41l-9.29 9.3-1.42-1.42 9.3-9.29H14V3Z" />
+                        <path d="M5 5h6v2H7v10h10v-4h2v6H5V5Z" />
+                    </svg>
+                </span>
+                <span>Portainer</span>
+            </a>
+        `;
 
-        rendered = rendered.replace(
-            '<h1>AMD Server</h1>',
-            `<div class="markdown-title-row"><h1>AMD Server</h1>${monitorAction}</div>`
+        rendered = injectMarkdownTitleActions(
+            rendered,
+            'amd-server',
+            [grafanaAction, portainerAction]
         );
     }
 
@@ -642,7 +683,36 @@ function renderMarkdownPage(docId, container) {
 function renderMarkdownWithCallouts(content) {
     const normalized = normalizeMarkdownCallouts(content);
 
-    return marked.parse(normalized, { renderer: createMarkdownRenderer() });
+    return resolveMarkdownAssetUrls(marked.parse(normalized, { renderer: createMarkdownRenderer() }));
+}
+
+function injectMarkdownTitleActions(rendered, headingId, actions) {
+    const titlePattern = new RegExp(`(<h1 id="${escapeRegExp(headingId)}">[\\s\\S]*?<\\/h1>)`);
+    const actionsHtml = actions.length
+        ? `<div class="markdown-title-actions">${actions.join('')}</div>`
+        : '';
+
+    return rendered.replace(
+        titlePattern,
+        `<div class="markdown-title-row">$1${actionsHtml}</div>`
+    );
+}
+
+function escapeRegExp(value) {
+    return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function resolveMarkdownAssetUrls(html) {
+    return html.replace(/\s(src|href)="(\.?\/?assets\/[^"]+)"/g, (match, attribute, rawPath) => {
+        const assetUrl = getMarkdownAssetUrl(rawPath);
+        return assetUrl ? ` ${attribute}="${escapeHtml(assetUrl)}"` : match;
+    });
+}
+
+function getMarkdownAssetUrl(rawPath) {
+    const normalizedPath = rawPath.replace(/^\.?\//, '');
+
+    return markdownAssetUrls[`./${normalizedPath}`] || '';
 }
 
 function normalizeMarkdownCallouts(content) {
@@ -950,14 +1020,13 @@ function performSearch(query) {
         ...state.appData.sidebarData,
         ...state.appData.serviceCards.flatMap((group) =>
             group.tools
-                .map((tool) => {
-                    const reference = getToolReference(tool);
+                .flatMap((tool) => getToolReferences(tool).map((reference) => {
                     if (!reference?.href?.startsWith('#')) {
                         return null;
                     }
 
-                    return { ...tool, id: reference.href.replace('#', '') };
-                })
+                    return { ...tool, title: `${tool.name} ${reference.label}`, id: reference.href.replace('#', '') };
+                }))
                 .filter(Boolean)
         ),
         ...Object.keys(state.docsData)
@@ -1020,22 +1089,38 @@ function activateSelectedSearchResult() {
     closeSearch();
 }
 
-function getToolReference(tool) {
+function getToolReferences(tool) {
+    if (Array.isArray(tool?.links)) {
+        return tool.links
+            .filter((reference) => reference?.href)
+            .map((reference) => ({
+                href: reference.href,
+                label: reference.label || (isExternalHref(reference.href) ? 'URL' : 'Handbook'),
+                external: reference.external ?? isExternalHref(reference.href)
+            }));
+    }
+
     if (tool?.handbook?.href) {
-        return {
+        return [{
             href: tool.handbook.href,
-            label: tool.handbook.label || 'Handbook'
-        };
+            label: tool.handbook.label || 'Handbook',
+            external: isExternalHref(tool.handbook.href)
+        }];
     }
 
     if (tool?.link) {
-        return {
+        return [{
             href: tool.link,
-            label: 'Handbook'
-        };
+            label: isExternalHref(tool.link) ? 'URL' : 'Handbook',
+            external: isExternalHref(tool.link)
+        }];
     }
 
-    return null;
+    return [];
+}
+
+function isExternalHref(href) {
+    return /^https?:\/\//i.test(href);
 }
 
 function openToolModal(toolName, imgSrc) {

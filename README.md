@@ -1,45 +1,108 @@
-<img width="1328" height="474" alt="Screenshot 2026-04-18 at 10 33 55 PM" src="https://github.com/user-attachments/assets/68694684-4dfc-4f9a-9294-1c44e83ca648" />
+<img width="1328" height="474" alt="iPRISM Hub banner" src="assets/hub-documentation/image1.png" />
 
 # iPRISM Hub
 
-Internal documentation hub for iPRISM Lab infrastructure, server access, operational notes, and shared tooling.
+iPRISM Hub is the internal handbook for iPRISM Lab infrastructure. It contains server notes, operational documentation, tool handbooks, and shared access guidance.
 
+## Open the Hub
 
-## Open the site
-
-Production URL:
+Use the production site:
 
 ```txt
 https://iprism-lab.github.io/iprism-servers/
 ```
 
-The app uses GitHub sign-in. Access is limited to approved users and can also be restricted by GitHub organization membership.
+Sign in with GitHub. Access is limited to approved iPRISM users and may require membership in the configured GitHub organization.
 
-Banner preview page:
+## Authentication
+
+The Hub uses GitHub-only authentication. If access is denied, ask an administrator to verify your GitHub account and organization membership.
+
+## Read Documentation
+
+After signing in, use the sidebar to open server and operations pages. Extra Markdown files in `docs/` appear automatically under the Documentation section.
+
+The contributor handbook is available inside the Hub as:
+
+```txt
+docs/hub-documentation.md
+```
+
+## Add a New Documentation Page
+
+Most Hub content is plain Markdown.
+
+1. Create a new `.md` file inside `docs/`.
+2. Use a lowercase, hyphenated filename.
+3. Start the file with one `#` heading.
+4. Add sections with `##` and `###` headings.
+5. Add images under `assets/<page-name>/`.
+6. Commit and push the change.
+
+Example:
+
+```txt
+docs/my-new-handbook.md
+assets/my-new-handbook/image1.png
+```
+
+Reference the image from Markdown:
+
+```md
+![Short image description](assets/my-new-handbook/image1.png)
+```
+
+The page will be rendered in the Hub as `My new handbook` under the Documentation section.
+
+## Link to Another Page or Section
+
+Use normal Markdown links.
+
+Link to another documentation page:
+
+```md
+[Open the Portainer handbook](#doc-portainer)
+```
+
+Link to a section inside the same page:
+
+```md
+[Jump to Setup](#setup)
+```
+
+Then define the matching heading:
+
+```md
+## Setup
+```
+
+## Run Locally
+
+Install dependencies and start the development server:
+
+```bash
+npm install
+npm run dev
+```
+
+Open the local site shown by Vite, usually:
+
+```txt
+http://localhost:5173/iprism-servers/
+```
+
+## Useful Files
+
+- `docs/`: Markdown handbook pages.
+- `assets/`: local assets used by Markdown handbook pages.
+- `public/tools.json`: dashboard cards, sidebar entries, tool links, and tool descriptions.
+- `main.js`: Hub rendering, routing, authentication, and Markdown behavior.
+- `style.css`: Hub styling.
+
+## Banner Preview
+
+The README banner preview page is:
 
 ```txt
 https://iprism-lab.github.io/iprism-servers/readme-banner.html
 ```
-
-## Authentication
-
-The app supports GitHub-only sign-in, and only members of the iPRISM-Lab will have access.
-
-
-## Content editing
-
-Most handbook content is maintained as Markdown.
-
-Current structure:
-
-- Infrastructure pages:
-  - `docs/server-nvidia.md`
-  - `docs/server-amd.md`
-- Operations pages:
-  - `docs/backup.md`
-  - `docs/monitoring.md`
-  - `docs/commands.md`
-- Additional documentation pages:
-  - other files in `docs/`
-
-If you want a page to be rendered from Markdown, add or update the corresponding file in `docs/`.

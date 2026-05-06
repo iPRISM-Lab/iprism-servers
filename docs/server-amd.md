@@ -52,14 +52,15 @@ ssh <username>@195.251.75.20
 
 | Port | Service  | Description       |
 | ---- | -------- | ----------------- |
-| 3030  | GRAFANA | Server Monitoring |
+| 3030 | GRAFANA  | Server Monitoring |
+| 9443 | Portainer | Docker Governance |
 
 
 ## Running Services
 
 | Service Name | Port | Description        |
 | ------------ | ---- | ------------------ |
-| Open Foam    | N/A  | 3+ Days for Escort |
+|      N/A     | N/A  | 3+ Days for Escort |
 
 
 ## Important Storage Structure

@@ -599,7 +599,7 @@ function renderMarkdownPage(docId, container) {
 
     let rendered = renderMarkdownWithCallouts(doc.content);
 
-    if (docId === 'portainer') {
+    if (isAmdPortainerDocument(doc)) {
         const portainerAction = `
             <a class="doc-action-button glass" href="${escapeHtml(PORTAINER_AMD_URL)}" target="_blank" rel="noopener noreferrer" aria-label="Open AMD Portainer in a new tab" title="Open AMD Portainer">
                 <span class="monitor-link-button-icon" aria-hidden="true">
@@ -614,7 +614,7 @@ function renderMarkdownPage(docId, container) {
 
         rendered = injectMarkdownTitleActions(
             rendered,
-            'iprism-portainer-infrastructure-documentation-for-amd-server',
+            getFirstMarkdownHeadingId(doc.content),
             [portainerAction]
         );
     }
@@ -713,6 +713,15 @@ function getMarkdownAssetUrl(rawPath) {
     const normalizedPath = rawPath.replace(/^\.?\//, '');
 
     return markdownAssetUrls[`./${normalizedPath}`] || '';
+}
+
+function isAmdPortainerDocument(doc) {
+    return /^#\s+.*portainer.*amd.*server/im.test(doc.content);
+}
+
+function getFirstMarkdownHeadingId(content) {
+    const heading = marked.lexer(content).find((token) => token.type === 'heading');
+    return heading ? slugifyMarkdownHeading(heading.text) : '';
 }
 
 function normalizeMarkdownCallouts(content) {

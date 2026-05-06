@@ -89,7 +89,7 @@ Who owns or maintains this documentation.
 Link to another Hub documentation page:
 
 ```md
-[Open the Portainer handbook](#doc-portainer)
+[Open the Portainer handbook](#doc-portainer-amd)
 ```
 
 Link to a section inside the same page:

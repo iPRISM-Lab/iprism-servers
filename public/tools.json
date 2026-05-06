@@ -45,7 +45,7 @@
           "name": "Portainer",
           "desc": "Container Management UI",
           "img": "media/portainer.svg",
-          "link": ""
+          "link": "#portainer"
         },
         {
           "name": "Harbor",

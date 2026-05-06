@@ -278,6 +278,7 @@ function renderRoute() {
         return;
     }
 
+    state.currentSection = resolveCurrentSectionFromHash();
     root.innerHTML = renderAppView();
     renderSidebar();
     renderContent(state.currentSection);
@@ -634,18 +635,63 @@ function renderMarkdownPage(docId, container) {
     });
 
     enhanceMarkdownCommandBlocks(container);
+    enhanceMarkdownLinks(container);
+    scrollToCurrentHashAnchor();
 }
 
 function renderMarkdownWithCallouts(content) {
-    const normalized = content.replace(
-        /^>\s*\[!WARNING\]\s*\n>\s*(.+)$/gm,
-        '<div class="markdown-callout markdown-callout-warning"><strong>Warning</strong><p>$1</p></div>'
-    ).replace(
-        /^>\s*\[!WARNING\]\s*(.+)$/gm,
-        '<div class="markdown-callout markdown-callout-warning"><strong>Warning</strong><p>$1</p></div>'
-    );
+    const normalized = normalizeMarkdownCallouts(content);
 
-    return marked.parse(normalized);
+    return marked.parse(normalized, { renderer: createMarkdownRenderer() });
+}
+
+function normalizeMarkdownCallouts(content) {
+    return content.replace(
+        /^>\s*\[!WARNING\]\s*\n((?:>\s?.*(?:\n|$))+)/gm,
+        (_match, body) => renderMarkdownCallout('Warning', body)
+    ).replace(
+        /^>\s*\[!WARNING\]\s+(.+)$/gm,
+        (_match, body) => renderMarkdownCallout('Warning', body)
+    );
+}
+
+function renderMarkdownCallout(title, body) {
+    const markdown = String(body)
+        .split(/\r?\n/)
+        .map((line) => line.replace(/^>\s?/, ''))
+        .join('\n')
+        .trim();
+    const html = marked.parse(markdown);
+
+    return `<div class="markdown-callout markdown-callout-warning"><strong>${escapeHtml(title)}</strong>${html}</div>`;
+}
+
+function createMarkdownRenderer() {
+    const renderer = new marked.Renderer();
+    const headingCounts = new Map();
+
+    renderer.heading = function heading(token) {
+        const baseId = slugifyMarkdownHeading(token.text);
+        const count = headingCounts.get(baseId) ?? 0;
+        headingCounts.set(baseId, count + 1);
+
+        const id = count ? `${baseId}-${count}` : baseId;
+        const content = this.parser.parseInline(token.tokens);
+
+        return `<h${token.depth} id="${escapeHtml(id)}">${content}</h${token.depth}>`;
+    };
+
+    return renderer;
+}
+
+function slugifyMarkdownHeading(text) {
+    const slug = String(text)
+        .trim()
+        .toLowerCase()
+        .replace(/[^\p{L}\p{N}\s-]/gu, '')
+        .replace(/\s/g, '-');
+
+    return slug || 'section';
 }
 
 function enhanceMarkdownCommandBlocks(container) {
@@ -693,6 +739,43 @@ function enhanceMarkdownCommandBlocks(container) {
         pre.appendChild(button);
         pre.appendChild(feedback);
     });
+}
+
+function enhanceMarkdownLinks(container) {
+    const markdownBody = container.querySelector('.markdown-body');
+    if (!markdownBody) {
+        return;
+    }
+
+    markdownBody.querySelectorAll('a[href^="#"]').forEach((link) => {
+        link.addEventListener('click', (event) => {
+            const anchorId = getAnchorIdFromHref(link.getAttribute('href'));
+            if (!anchorId) {
+                return;
+            }
+
+            const target = document.getElementById(anchorId);
+            if (!target || !markdownBody.contains(target)) {
+                return;
+            }
+
+            event.preventDefault();
+            window.history.pushState({}, '', `${withBasePath(ROUTES.home)}#${state.currentSection}/${anchorId}`);
+            scrollToMarkdownAnchor(anchorId, { smooth: true });
+        });
+    });
+}
+
+function getAnchorIdFromHref(href) {
+    if (!href || href === '#') {
+        return '';
+    }
+
+    try {
+        return decodeURIComponent(href.slice(1));
+    } catch {
+        return href.slice(1);
+    }
 }
 
 function isShellCodeBlock(codeElement) {
@@ -987,7 +1070,21 @@ function handleHashChange() {
         return;
     }
 
-    state.currentSection = getSectionFromHash();
+    let route = getHashRoute();
+    if (!isKnownSection(route.section) && scrollCurrentMarkdownPageToAnchor(route.section)) {
+        window.history.replaceState({}, '', `${withBasePath(ROUTES.home)}#${state.currentSection}/${route.section}`);
+        return;
+    }
+
+    if (!isKnownSection(route.section)) {
+        const documentSection = findDocumentSectionByAnchor(route.section);
+        if (documentSection) {
+            window.history.replaceState({}, '', `${withBasePath(ROUTES.home)}#${documentSection}/${route.section}`);
+            route = getHashRoute();
+        }
+    }
+
+    state.currentSection = route.section;
     toggleSidebar(false);
     renderSidebar();
     renderContent(state.currentSection);
@@ -1062,6 +1159,7 @@ async function handleClick(event) {
 
     const sectionLink = target.closest('[data-section]');
     if (sectionLink instanceof HTMLElement) {
+        event.preventDefault();
         const section = sectionLink.dataset.section;
         if (section) {
             window.location.hash = section;
@@ -1213,17 +1311,139 @@ function normalizePath(pathname) {
     return pathname.replace(/\/+$/, '') || '/';
 }
 
-function getSectionFromHash() {
-    return window.location.hash.slice(1) || 'overview';
+function resolveCurrentSectionFromHash() {
+    const route = getHashRoute();
+    if (isKnownSection(route.section)) {
+        return route.section;
+    }
+
+    const documentSection = findDocumentSectionByAnchor(route.section);
+    if (!documentSection) {
+        return route.section;
+    }
+
+    window.history.replaceState({}, '', `${withBasePath(ROUTES.home)}#${documentSection}/${route.section}`);
+    return documentSection;
+}
+
+function getHashRoute() {
+    const hash = window.location.hash.slice(1);
+    if (!hash || isAuthCallbackHash(hash)) {
+        return {
+            section: 'overview',
+            anchor: ''
+        };
+    }
+
+    const [section, ...anchorParts] = hash.split('/');
+
+    return {
+        section: section || 'overview',
+        anchor: anchorParts.join('/')
+    };
+}
+
+function scrollToCurrentHashAnchor() {
+    const { anchor } = getHashRoute();
+    if (!anchor) {
+        return;
+    }
+
+    scrollToMarkdownAnchor(anchor);
+}
+
+function scrollCurrentMarkdownPageToAnchor(anchorId) {
+    const markdownBody = document.querySelector('.markdown-body');
+    const target = anchorId ? document.getElementById(anchorId) : null;
+    if (!markdownBody || !target || !markdownBody.contains(target)) {
+        return false;
+    }
+
+    scrollToMarkdownAnchor(anchorId);
+    return true;
+}
+
+function scrollToMarkdownAnchor(anchorId, options = {}) {
+    window.requestAnimationFrame(() => {
+        const target = document.getElementById(anchorId);
+        if (!target) {
+            return;
+        }
+
+        target.scrollIntoView({
+            block: 'start',
+            behavior: options.smooth ? 'smooth' : 'auto'
+        });
+    });
+}
+
+function isKnownSection(sectionId) {
+    if (!sectionId || sectionId === 'overview') {
+        return true;
+    }
+
+    if (state.docsData[sectionId]) {
+        return true;
+    }
+
+    if (sectionId.startsWith('doc-') && state.docsData[sectionId.replace('doc-', '')]) {
+        return true;
+    }
+
+    return Boolean(state.appData?.sidebarData?.some((item) => item.id === sectionId));
+}
+
+function findDocumentSectionByAnchor(anchorId) {
+    if (!anchorId) {
+        return '';
+    }
+
+    for (const docId of getDocumentLookupOrder()) {
+        const doc = state.docsData[docId];
+        if (doc?.content && getMarkdownHeadingIds(doc.content).includes(anchorId)) {
+            return getDocumentSectionId(docId);
+        }
+    }
+
+    return '';
+}
+
+function getDocumentLookupOrder() {
+    const sidebarDocIds = state.appData?.sidebarData
+        ?.map((item) => item.id)
+        .filter((id) => state.docsData[id]) ?? [];
+    const remainingDocIds = Object.keys(state.docsData)
+        .filter((id) => !sidebarDocIds.includes(id));
+
+    return [...sidebarDocIds, ...remainingDocIds];
+}
+
+function getDocumentSectionId(docId) {
+    const hasSidebarItem = state.appData?.sidebarData?.some((item) => item.id === docId);
+    return hasSidebarItem ? docId : `doc-${docId}`;
+}
+
+function getMarkdownHeadingIds(content) {
+    const counts = new Map();
+
+    return marked.lexer(content)
+        .filter((token) => token.type === 'heading')
+        .map((token) => {
+            const baseId = slugifyMarkdownHeading(token.text);
+            const count = counts.get(baseId) ?? 0;
+            counts.set(baseId, count + 1);
+
+            return count ? `${baseId}-${count}` : baseId;
+        });
 }
 
 function getInitialSection() {
-    const hash = window.location.hash.slice(1);
-    if (!hash || isAuthCallbackHash(hash)) {
+    const { section } = getHashRoute();
+    if (!section) {
         return 'overview';
     }
 
-    return hash;
+    return section;
 }
 
 function isAuthCallbackHash(hash) {

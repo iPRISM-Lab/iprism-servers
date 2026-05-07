@@ -60,7 +60,7 @@ ssh <username>@195.251.75.20
 
 | Service Name | Port | Description        |
 | ------------ | ---- | ------------------ |
-|      N/A     | N/A  | 3+ Days for Escort |
+|      Stavros-Thesis     | N/A  | 6+ Days |
 
 
 ## Important Storage Structure

@@ -130,12 +130,12 @@ Each project team has a designated team leader responsible for maintaining team 
 | Team | Team Leader(s) |
 |---|---|
 | TERRA | Dionysis Giannaropoulos |
-| TRACE | TBD |
+| TRACE | Nikolas Tymplalexis |
 | ELLIE | Christos Kylafas |
-| ESCORT | TBD |
+| ESCORT | Maria Papathanasaki |
 | IFLORA | Thanasis Koukosias |
 | Research-Team | Dionysis Giannaropoulos, Christos Kylafas, Thanasis Koukosias|
-| Admins | Dionysis Giannaropoulos |
+| Admins | Dionysis Giannaropoulos, Christos Kylafas, Thanasis Koukosias |
 
 ---
 
@@ -401,7 +401,8 @@ container1
 ## Administrators
 
 The following users currently have administrator privileges:
-- Dionysis Giannaropoulos (dgiannar@uth.gr)
+- Christos Kilafas (ckylafas@uth.gr)
 - Athanasios Koukosias (akoukosias@uth.gr)
+- Dionysis Giannaropoulos (dgiannar@uth.gr)
 
 For infrastructure issues, environment problems, onboarding requests, or migration support, please contact the administrators.

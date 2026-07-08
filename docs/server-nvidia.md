@@ -52,7 +52,7 @@ ssh <username>@195.251.57.17 -p <port>
 
 | Port | Service | Description |
 | ---- | ------- | ----------- |
-| N/A  | N/A     | N/A         |
+| 80  | Taiga     | Self Hosting Taiga For ELLIE        |
 
 
 ## Running Services / Containers

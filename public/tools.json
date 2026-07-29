@@ -6,6 +6,11 @@
       "type": "main"
     },
     {
+      "id": "cv-builder",
+      "title": "CV Builder",
+      "type": "main"
+    },
+    {
       "id": "nvidia-server",
       "title": "NVIDIA Server",
       "type": "infra"

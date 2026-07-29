@@ -22,6 +22,8 @@ The Hub uses GitHub-only authentication. If access is denied, ask an administrat
 
 After signing in, use the sidebar to open server and operations pages. Extra Markdown files in `docs/` appear automatically under the Documentation section.
 
+Approved users can also create and publish a standardized academic CV from **CV Builder**. Deployment setup is documented in `docs/cv-publishing.md`.
+
 The contributor handbook is available inside the Hub as:
 
 ```txt
@@ -97,6 +99,8 @@ http://localhost:5173/iprism-servers/
 - `assets/`: local assets used by Markdown handbook pages.
 - `public/tools.json`: dashboard cards, sidebar entries, tool links, and tool descriptions.
 - `main.js`: Hub rendering, routing, authentication, and Markdown behavior.
+- `cv-builder.js`: CV editor, autosave, photo upload, preview, and publication workflow.
+- `supabase/`: CV schema, storage policies, static template, and publishing Edge Function.
 - `style.css`: Hub styling.
 
 ## Banner Preview

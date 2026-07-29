@@ -2,6 +2,14 @@ import { createClient } from '@supabase/supabase-js';
 import { marked } from 'marked';
 import { markedHighlight } from 'marked-highlight';
 import hljs from 'highlight.js';
+import './cv-builder.css';
+import {
+    handleCvChange,
+    handleCvClick,
+    handleCvInput,
+    mountCvBuilder,
+    unmountCvBuilder
+} from './cv-builder.js';
 
 const markdownAssetUrls = import.meta.glob('./assets/**/*', {
     query: '?url',
@@ -37,6 +45,7 @@ const state = {
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 const githubOrg = (import.meta.env.VITE_GITHUB_ORG || '').trim();
+const cvBaseDomain = (import.meta.env.VITE_CV_BASE_DOMAIN || '').trim();
 const hasSupabaseConfig = Boolean(supabaseUrl && supabaseAnonKey);
 const supabase = hasSupabaseConfig
     ? createClient(supabaseUrl, supabaseAnonKey, {
@@ -266,6 +275,7 @@ function renderRoute() {
 
     const path = getCurrentPath();
     if (path === ROUTES.auth) {
+        unmountCvBuilder();
         if (hasAppSectionHash()) {
             navigateTo(ROUTES.auth, { replace: true });
             return;
@@ -282,6 +292,7 @@ function renderRoute() {
     }
 
     if (!state.session) {
+        unmountCvBuilder();
         navigateTo(ROUTES.auth, { replace: true });
         return;
     }
@@ -535,11 +546,18 @@ function renderContent(sectionId) {
         return;
     }
 
+    unmountCvBuilder();
     const wrapper = document.createElement('div');
     wrapper.className = 'fade-in';
 
     if (sectionId === 'overview') {
         renderDashboard(wrapper);
+    } else if (sectionId === 'cv-builder') {
+        void mountCvBuilder(wrapper, {
+            supabase,
+            session: state.session,
+            baseDomain: cvBaseDomain
+        });
     } else if (state.docsData[sectionId]) {
         renderMarkdownPage(sectionId, wrapper);
     } else if (sectionId.startsWith('doc-')) {
@@ -1190,6 +1208,10 @@ async function handleClick(event) {
         return;
     }
 
+    if (await handleCvClick(event)) {
+        return;
+    }
+
     const themeToggleClicked = target.closest('[data-theme-toggle]');
     if (themeToggleClicked) {
         return;
@@ -1292,7 +1314,11 @@ async function handleClick(event) {
     }
 }
 
-function handleChange(event) {
+async function handleChange(event) {
+    if (await handleCvChange(event)) {
+        return;
+    }
+
     const target = event.target;
     if (!(target instanceof HTMLInputElement)) {
         return;
@@ -1304,6 +1330,10 @@ function handleChange(event) {
 }
 
 function handleInput(event) {
+    if (handleCvInput(event)) {
+        return;
+    }
+
     const target = event.target;
     if (!(target instanceof HTMLInputElement)) {
         return;

@@ -24,6 +24,7 @@ jobs:
       VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
       VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
       VITE_GITHUB_ORG: ${{ vars.VITE_GITHUB_ORG }}
+      VITE_CV_BASE_DOMAIN: ${{ vars.VITE_CV_BASE_DOMAIN }}
       VITE_GRAFANA_URL: ${{ secrets.VITE_GRAFANA_URL }}
     steps:
       - name: Checkout

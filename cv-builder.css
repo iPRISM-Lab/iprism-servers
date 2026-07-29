@@ -285,6 +285,197 @@ body.dark .cv-save-state-error { color: #ff8b84; }
     cursor: pointer;
 }
 
+.cv-import-upload {
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+}
+
+.cv-import-upload input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+}
+
+.cv-import-upload.is-disabled {
+    cursor: wait;
+    opacity: 0.65;
+}
+
+.cv-import-panel {
+    margin-bottom: 16px;
+    padding: 18px 2px;
+    border-top: 1px solid var(--glass-border);
+    border-bottom: 1px solid var(--glass-border);
+    color: var(--text-primary);
+}
+
+.cv-import-panel > p,
+.cv-import-review-heading p {
+    margin: 8px 0 0;
+    color: var(--text-secondary);
+    font-size: 0.78rem;
+    line-height: 1.5;
+}
+
+.cv-import-progress-heading,
+.cv-import-review-heading,
+.cv-import-review-actions,
+.cv-import-review-tools,
+.cv-import-panel-error {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.cv-import-progress-heading > div,
+.cv-import-review-heading > div,
+.cv-import-panel-error > div {
+    min-width: 0;
+    display: grid;
+    gap: 3px;
+}
+
+.cv-import-progress-heading span,
+.cv-import-review-heading span,
+.cv-import-panel-error span {
+    color: var(--text-secondary);
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.cv-import-progress-heading strong,
+.cv-import-review-heading strong,
+.cv-import-panel-error strong {
+    overflow-wrap: anywhere;
+}
+
+.cv-import-progress-heading > b,
+.cv-import-review-heading > b {
+    flex: 0 0 auto;
+    color: var(--accent);
+    font-size: 0.8rem;
+}
+
+.cv-import-progress {
+    height: 7px;
+    margin-top: 14px;
+    overflow: hidden;
+    border-radius: 4px;
+    background: color-mix(in srgb, var(--glass-border) 72%, transparent);
+}
+
+.cv-import-progress span {
+    height: 100%;
+    display: block;
+    border-radius: inherit;
+    background: #087f5b;
+    transition: width 0.2s ease;
+}
+
+.cv-import-review-tools {
+    justify-content: flex-start;
+    margin: 16px 0 12px;
+}
+
+.cv-import-review-tools .cv-button {
+    min-height: 34px;
+    padding-inline: 10px;
+    font-size: 0.75rem;
+}
+
+.cv-import-warning {
+    padding-left: 10px;
+    border-left: 3px solid #d39a1d;
+}
+
+.cv-import-groups {
+    max-height: 420px;
+    overflow: auto;
+    border-top: 1px solid var(--glass-border);
+    border-bottom: 1px solid var(--glass-border);
+}
+
+.cv-import-group {
+    padding: 15px 0;
+}
+
+.cv-import-group + .cv-import-group {
+    border-top: 1px solid var(--glass-border);
+}
+
+.cv-import-group h3 {
+    margin: 0 0 9px;
+    color: var(--text-secondary);
+    font: 700 0.72rem/1.3 inherit;
+    text-transform: uppercase;
+}
+
+.cv-import-candidate {
+    min-width: 0;
+    padding: 8px 4px;
+    display: grid;
+    grid-template-columns: 18px minmax(0, 1fr);
+    align-items: start;
+    gap: 10px;
+    cursor: pointer;
+}
+
+.cv-import-candidate input {
+    position: absolute;
+    opacity: 0;
+}
+
+.cv-import-candidate > span {
+    width: 18px;
+    height: 18px;
+    display: grid;
+    place-items: center;
+    border: 1px solid var(--glass-border);
+    border-radius: 4px;
+}
+
+.cv-import-candidate input:checked + span {
+    border-color: #087f5b;
+    background: #087f5b;
+}
+
+.cv-import-candidate input:checked + span::after {
+    content: '';
+    width: 8px;
+    height: 4px;
+    border-left: 2px solid #ffffff;
+    border-bottom: 2px solid #ffffff;
+    transform: translateY(-1px) rotate(-45deg);
+}
+
+.cv-import-candidate input:focus-visible + span {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+.cv-import-candidate div {
+    min-width: 0;
+    display: grid;
+    gap: 3px;
+}
+
+.cv-import-candidate strong,
+.cv-import-candidate small {
+    overflow-wrap: anywhere;
+}
+
+.cv-import-candidate strong { font-size: 0.82rem; }
+.cv-import-candidate small { color: var(--text-secondary); font-size: 0.72rem; line-height: 1.45; }
+
+.cv-import-review-actions {
+    justify-content: flex-end;
+    margin-top: 16px;
+}
+
 .cv-upload-button input {
     position: absolute;
     inset: 0;
@@ -570,6 +761,12 @@ body.light .cv-repeat-item {
     }
 
     .cv-preview-frame { height: 760px; }
+
+    .cv-import-progress-heading,
+    .cv-import-review-heading,
+    .cv-import-panel-error {
+        align-items: flex-start;
+    }
 }
 
 @media (max-width: 460px) {

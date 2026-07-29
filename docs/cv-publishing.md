@@ -1,58 +1,62 @@
 # CV publishing
 
-The Hub stores private CV drafts in Supabase and publishes independent static sites to GitHub Pages. Each CV uses the same generated template and receives an exact DNS record such as `username.cv.example.org`.
+The Hub stores private CV drafts in Supabase and publishes static CV pages inside the main iPRISM Pages repository. Every CV uses the shared template and receives a path such as:
+
+```text
+https://iprism-lab.github.io/iprism-servers/cv/username/
+```
 
 ## Architecture
 
 1. GitHub authentication identifies the Hub user.
 2. `cv_profiles` stores one owner-protected JSON draft per user.
 3. The private `cv-photos` bucket stores profile images under the user's UUID.
-4. The authenticated `publish-cv` Edge Function generates static HTML, copies the profile image, creates or updates the managed GitHub repository, configures Pages, and creates the user's Cloudflare CNAME record.
-5. Published sites have no runtime dependency on Supabase or the Hub.
+4. The browser can extract a text-based PDF locally with PDF.js and enrich names, organizations, and locations with Transformers.js.
+5. The authenticated `publish-cv` Edge Function generates static HTML and commits it under `public/cv/<slug>/` in the main repository.
+6. The existing GitHub Actions Pages workflow rebuilds the project site.
 
-The publisher creates one public repository per CV. It does not use wildcard DNS records.
+Published CVs have no runtime dependency on Supabase or the Hub. The generated HTML and profile image are static files.
 
-## One-time GitHub setup
+## GitHub setup
 
-1. In the GitHub organization settings, open **Pages** and verify the base CV domain. Keep GitHub's TXT verification record in DNS.
-2. Create an organization automation token that can create public repositories, read organization members, and has write access to repository administration, contents, and Pages.
-3. Ensure organization policy allows the token to create repositories and publish GitHub Pages sites.
+Create an organization automation token that can read organization membership and write repository contents in `iPRISM-Lab/iprism-servers`. The publisher makes one atomic Git commit per publication and does not create repositories, DNS records, or Pages configurations.
 
-The publisher adds a marker file to every managed repository. It refuses to overwrite an existing repository without the matching profile marker.
+The publisher writes `.iprism-cv.json` inside every managed CV directory. It refuses to overwrite a path owned by a different profile. Renaming a public URL removes the previous managed directory in the same commit.
 
-## One-time Cloudflare setup
-
-Create an API token scoped to the CV domain's zone with `DNS Read` and `DNS Write`. Record the zone ID. The function creates a separate, unproxied CNAME for every published CV and points it to `<organization>.github.io`.
+Pushes made by the automation token must be allowed to trigger `.github/workflows/deploy-pages.yml` on `main`.
 
 ## Supabase deployment
 
-Link the repository to the Supabase project, apply the migration, configure function secrets, and deploy the function:
+Link the repository, apply the migration, configure function secrets, and deploy the function:
 
 ```bash
 npx supabase link --project-ref <project-ref>
 npx supabase db push
 npx supabase secrets set \
   GITHUB_TOKEN=<github-automation-token> \
-  GITHUB_ORG=iPrism-Lab \
-  CV_BASE_DOMAIN=cv.example.org \
-  CLOUDFLARE_API_TOKEN=<cloudflare-token> \
-  CLOUDFLARE_ZONE_ID=<cloudflare-zone-id> \
-  ALLOWED_ORIGINS=https://iprism-lab.github.io,http://localhost:5173
+  GITHUB_ORG=iPRISM-Lab \
+  GITHUB_PAGES_REPOSITORY=iprism-servers \
+  GITHUB_PAGES_BASE_URL=https://iprism-lab.github.io/iprism-servers \
+  ALLOWED_ORIGINS=https://iprism-lab.github.io,http://127.0.0.1:5173
 npx supabase functions deploy publish-cv
 ```
 
-Supabase provides `SUPABASE_URL` and the project secret to the deployed function automatically.
+Supabase provides `SUPABASE_URL` and the project secret to the deployed function automatically. `GITHUB_PAGES_REPOSITORY` defaults to `iprism-servers`, and `GITHUB_PAGES_BASE_URL` defaults to the organization project-site URL, but explicit production values are recommended.
 
-## Hub deployment
+## PDF import
 
-Add `VITE_CV_BASE_DOMAIN` as a GitHub Actions repository variable. Its value must match the function's `CV_BASE_DOMAIN` secret exactly.
+The PDF importer accepts text-based PDFs up to 15 MB. PDF.js extracts text in the browser, then a quantized DistilBERT NER model runs in a Web Worker through Transformers.js using single-threaded WASM for broad GitHub Pages compatibility. Model assets are downloaded from Hugging Face on first use and cached by the browser.
 
-After the Hub deployment completes, **CV Builder** appears under **Main**. A user can edit and autosave a draft, upload a profile photo, preview the standard template, reserve a unique subdomain, and publish.
+The importer never applies results silently. Users review individual personal fields and collection entries, existing populated personal fields are unchecked by default, and duplicate publications and programming languages are omitted. Applying selected results saves the draft immediately.
+
+Scanned image-only PDFs are rejected with an OCR-specific message. OCR is intentionally outside the first importer version.
 
 ## Publication behavior
 
-Publishing is idempotent: later publishes update the same managed repository. If a user changes their subdomain, the publisher updates the Pages custom domain and removes the previous managed DNS record. GitHub may take up to an hour to provision HTTPS for a new custom domain; publishing still completes and a later publish retries HTTPS enforcement.
+Publishing is idempotent. Later publications update the same managed directory. GitHub Pages may briefly show the previous version while the repository workflow rebuilds and deploys the latest commit.
+
+Existing CV repositories and custom DNS records created by the previous publisher are not deleted automatically. Republishing moves the database's public URL to the central project path.
 
 ## Data access
 
-CV drafts and source profile photos are private. Row Level Security limits each draft and photo folder to its authenticated owner, while column grants prevent clients from changing publisher-managed repository and DNS state. The Edge Function independently verifies active GitHub organization membership before publishing. Only the Edge Function uses server credentials, and GitHub and Cloudflare tokens are never sent to the browser.
+CV drafts and source profile photos remain private. Row Level Security limits each draft and photo folder to its authenticated owner. The Edge Function independently verifies active GitHub organization membership before publishing. Only the Edge Function uses server credentials, and the GitHub token is never sent to the browser.

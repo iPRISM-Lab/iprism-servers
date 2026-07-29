@@ -99,7 +99,9 @@ http://localhost:5173/iprism-servers/
 - `assets/`: local assets used by Markdown handbook pages.
 - `public/tools.json`: dashboard cards, sidebar entries, tool links, and tool descriptions.
 - `main.js`: Hub rendering, routing, authentication, and Markdown behavior.
-- `cv-builder.js`: CV editor, autosave, photo upload, preview, and publication workflow.
+- `cv-builder.js`: CV editor, PDF import review, autosave, photo upload, preview, and publication workflow.
+- `cv-pdf-importer.js`: browser PDF text extraction and local transformer orchestration.
+- `cv-import-parser.js`: deterministic academic CV parsing, review candidates, and safe draft merging.
 - `supabase/`: CV schema, storage policies, static template, and publishing Edge Function.
 - `style.css`: Hub styling.
 

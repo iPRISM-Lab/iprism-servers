@@ -6,6 +6,7 @@ import {
     normalizeProfile,
     renderCvHtml
 } from './supabase/functions/_shared/cv-template.js';
+import { applyImportReview, buildImportReview } from './cv-import-parser.js';
 
 const PHOTO_BUCKET = 'cv-photos';
 const SAVE_DELAY_MS = 850;
@@ -26,7 +27,7 @@ export async function mountCvBuilder(container, options) {
         container,
         supabase: options.supabase,
         session: options.session,
-        baseDomain: String(options.baseDomain || '').trim().toLowerCase(),
+        publicBaseUrl: String(options.publicBaseUrl || '').replace(/\/+$/, ''),
         activeTab: 'personal',
         profile: createDefaultProfile(options.session?.user),
         record: null,
@@ -36,6 +37,7 @@ export async function mountCvBuilder(container, options) {
         saving: false,
         savePromise: null,
         publishing: false,
+        importState: { status: 'idle' },
         dirty: false,
         revision: 0,
         notice: { text: 'Loading draft', tone: 'muted' }
@@ -132,6 +134,24 @@ export async function handleCvClick(event) {
         return true;
     }
 
+    if (action === 'import-apply') {
+        await applyPdfImport(builder);
+        return true;
+    }
+
+    if (action === 'import-select-all' || action === 'import-select-none') {
+        const candidates = builder.importState.candidates || [];
+        builder.importState.selected = new Set(action === 'import-select-all' ? candidates.map((candidate) => candidate.key) : []);
+        renderBuilder(builder);
+        return true;
+    }
+
+    if (action === 'import-dismiss') {
+        builder.importState = { status: 'idle' };
+        renderBuilder(builder);
+        return true;
+    }
+
     if (action === 'remove-photo') {
         await removePhoto(builder);
         return true;
@@ -161,8 +181,23 @@ export async function handleCvChange(event) {
     if (!(target instanceof HTMLInputElement || target instanceof HTMLSelectElement || target instanceof HTMLTextAreaElement)) return false;
     if (!builder.container.contains(target)) return false;
 
+    if (target instanceof HTMLInputElement && target.type === 'file' && target.dataset.cvImportPdf !== undefined) {
+        await startPdfImport(builder, target.files?.[0]);
+        target.value = '';
+        return true;
+    }
+
     if (target instanceof HTMLInputElement && target.type === 'file' && target.dataset.cvPhoto !== undefined) {
         await uploadPhoto(builder, target.files?.[0]);
+        return true;
+    }
+
+    if (target instanceof HTMLInputElement && target.dataset.cvImportKey) {
+        const selected = builder.importState.selected || new Set();
+        if (target.checked) selected.add(target.dataset.cvImportKey);
+        else selected.delete(target.dataset.cvImportKey);
+        builder.importState.selected = selected;
+        updateImportSelectionCount(builder);
         return true;
     }
 
@@ -204,6 +239,10 @@ function renderBuilder(instance) {
                 </div>
                 <div class="cv-builder-actions">
                     <span class="cv-save-state cv-save-state-${escapeHtml(instance.notice.tone)}" data-cv-status>${escapeHtml(instance.notice.text)}</span>
+                    <label class="cv-button cv-button-secondary cv-import-upload ${instance.importState.status === 'running' ? 'is-disabled' : ''}">
+                        <span aria-hidden="true">&#8595;</span> Import PDF
+                        <input type="file" accept="application/pdf,.pdf" data-cv-import-pdf ${instance.importState.status === 'running' ? 'disabled' : ''}>
+                    </label>
                     <button type="button" class="cv-button cv-button-secondary" data-cv-action="save">
                         <span aria-hidden="true">&#10003;</span> Save
                     </button>
@@ -215,10 +254,11 @@ function renderBuilder(instance) {
             <div class="cv-domain-strip">
                 <div>
                     <span>Public address</span>
-                    <strong data-cv-domain>${escapeHtml(formatDomain(instance))}</strong>
+                    <strong data-cv-domain>${escapeHtml(formatPublicUrl(instance))}</strong>
                 </div>
                 ${publishedUrl ? `<a href="${escapeHtml(publishedUrl)}" target="_blank" rel="noopener noreferrer">Open published CV <span aria-hidden="true">&#8599;</span></a>` : '<span class="cv-domain-state">Not published</span>'}
             </div>
+            ${renderImportPanel(instance)}
             <div class="cv-builder-workspace">
                 <section class="cv-editor-pane" aria-label="CV editor">
                     <div class="cv-tabs" role="tablist" aria-label="CV sections">
@@ -287,7 +327,7 @@ function renderPersonalForm(profile, instance) {
                 ${textField('Location', 'personal.location', personal.location, { placeholder: 'Athens, Greece' })}
                 ${textField('Website', 'personal.website', personal.website, { type: 'url', placeholder: 'example.org' })}
                 ${textField('ORCID', 'personal.orcid', personal.orcid, { placeholder: '0000-0000-0000-0000' })}
-                ${textField('Subdomain', 'slug', profile.slug, { placeholder: 'ada-lovelace' })}
+                ${textField('Public URL name', 'slug', profile.slug, { placeholder: 'ada-lovelace' })}
                 ${textareaField('Professional summary', 'personal.summary', personal.summary, { wide: true, rows: 5 })}
             </div>
             <div class="cv-checkbox-row">
@@ -483,6 +523,70 @@ function renderEmptyState(text) {
     return `<div class="cv-empty-state">${escapeHtml(text)}</div>`;
 }
 
+function renderImportPanel(instance) {
+    const state = instance.importState;
+    if (!state || state.status === 'idle') return '';
+    if (state.status === 'running') {
+        return `
+            <section class="cv-import-panel" aria-live="polite">
+                <div class="cv-import-progress-heading">
+                    <div><span>Local PDF import</span><strong data-cv-import-stage>${escapeHtml(state.stage || 'Preparing import')}</strong></div>
+                    <b data-cv-import-percent>${Number(state.percent || 0)}%</b>
+                </div>
+                <div class="cv-import-progress" role="progressbar" aria-label="PDF import progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Number(state.percent || 0)}" data-cv-import-progress><span style="width:${Number(state.percent || 0)}%"></span></div>
+                <p>The PDF and model run in this browser. The first model load can take a few minutes.</p>
+            </section>
+        `;
+    }
+    if (state.status === 'error') {
+        return `
+            <section class="cv-import-panel cv-import-panel-error" role="alert">
+                <div><span>PDF import failed</span><strong>${escapeHtml(state.message || 'The CV could not be imported')}</strong></div>
+                <button type="button" class="cv-button cv-button-secondary" data-cv-action="import-dismiss">Dismiss</button>
+            </section>
+        `;
+    }
+
+    const candidates = state.candidates || [];
+    const selected = state.selected || new Set();
+    const groups = [...new Set(candidates.map((candidate) => candidate.group))];
+    return `
+        <section class="cv-import-panel cv-import-review" aria-label="Review PDF import">
+            <div class="cv-import-review-heading">
+                <div>
+                    <span>Review extracted details</span>
+                    <strong>${escapeHtml(state.fileName || 'CV.pdf')}</strong>
+                    <p>${Number(state.pageCount || 0)} pages analyzed locally${state.modelUsed ? ' with transformer enrichment' : ''}.</p>
+                </div>
+                <b data-cv-import-selection-count>${selected.size} selected</b>
+            </div>
+            ${state.warning ? `<p class="cv-import-warning">${escapeHtml(state.warning)}</p>` : ''}
+            <div class="cv-import-review-tools">
+                <button type="button" class="cv-button cv-button-secondary" data-cv-action="import-select-all">Select all</button>
+                <button type="button" class="cv-button cv-button-secondary" data-cv-action="import-select-none">Select none</button>
+            </div>
+            <div class="cv-import-groups">
+                ${groups.map((group) => `
+                    <section class="cv-import-group">
+                        <h3>${escapeHtml(group)}</h3>
+                        ${candidates.filter((candidate) => candidate.group === group).map((candidate) => `
+                            <label class="cv-import-candidate">
+                                <input type="checkbox" data-cv-import-key="${escapeHtml(candidate.key)}" ${selected.has(candidate.key) ? 'checked' : ''}>
+                                <span aria-hidden="true"></span>
+                                <div><strong>${escapeHtml(candidate.label)}</strong>${candidate.summary ? `<small>${escapeHtml(candidate.summary)}</small>` : ''}</div>
+                            </label>
+                        `).join('')}
+                    </section>
+                `).join('')}
+            </div>
+            <div class="cv-import-review-actions">
+                <button type="button" class="cv-button cv-button-secondary" data-cv-action="import-dismiss">Cancel</button>
+                <button type="button" class="cv-button cv-button-primary" data-cv-action="import-apply" ${selected.size ? '' : 'disabled'}>Apply selected</button>
+            </div>
+        </section>
+    `;
+}
+
 function refreshPreview(instance) {
     const frame = instance.container.querySelector('[data-cv-preview]');
     if (frame instanceof HTMLIFrameElement) {
@@ -492,12 +596,74 @@ function refreshPreview(instance) {
 
 function updateDomainLabel(instance) {
     const label = instance.container.querySelector('[data-cv-domain]');
-    if (label) label.textContent = formatDomain(instance);
+    if (label) label.textContent = formatPublicUrl(instance);
 }
 
-function formatDomain(instance) {
+function formatPublicUrl(instance) {
     const slug = instance.profile.slug || 'your-name';
-    return instance.baseDomain ? `${slug}.${instance.baseDomain}` : `${slug}.cv.example.org`;
+    return `${instance.publicBaseUrl || 'https://iprism-lab.github.io/iprism-servers/cv'}/${slug}/`;
+}
+
+async function startPdfImport(instance, file) {
+    if (!file || instance.importState.status === 'running') return;
+    instance.importState = { status: 'running', stage: 'Preparing PDF', percent: 1, fileName: file.name };
+    renderBuilder(instance);
+
+    try {
+        const { importCvPdf } = await import('./cv-pdf-importer.js');
+        const result = await importCvPdf(file, (progress) => updateImportProgress(instance, progress));
+        if (builder !== instance) return;
+        const candidates = buildImportReview(instance.profile, result.profile);
+        if (!candidates.length) throw new Error('No new CV details were found in this PDF');
+        instance.importState = {
+            status: 'review',
+            fileName: file.name,
+            importedProfile: result.profile,
+            candidates,
+            selected: new Set(candidates.filter((candidate) => candidate.selected).map((candidate) => candidate.key)),
+            pageCount: result.pageCount,
+            modelUsed: result.modelUsed,
+            warning: result.warning
+        };
+        renderBuilder(instance);
+    } catch (error) {
+        if (builder !== instance) return;
+        console.error('CV PDF import failed:', error);
+        instance.importState = { status: 'error', message: error instanceof Error ? error.message : 'The PDF could not be imported' };
+        renderBuilder(instance);
+    }
+}
+
+function updateImportProgress(instance, progress) {
+    if (builder !== instance || instance.importState.status !== 'running') return;
+    instance.importState.stage = progress.stage || instance.importState.stage;
+    instance.importState.percent = Math.round(progress.percent || instance.importState.percent || 0);
+    const stage = instance.container.querySelector('[data-cv-import-stage]');
+    const percent = instance.container.querySelector('[data-cv-import-percent]');
+    const meter = instance.container.querySelector('[data-cv-import-progress]');
+    if (stage) stage.textContent = instance.importState.stage;
+    if (percent) percent.textContent = `${instance.importState.percent}%`;
+    if (meter) {
+        meter.setAttribute('aria-valuenow', String(instance.importState.percent));
+        const fill = meter.querySelector('span');
+        if (fill instanceof HTMLElement) fill.style.width = `${instance.importState.percent}%`;
+    }
+}
+
+function updateImportSelectionCount(instance) {
+    const count = instance.container.querySelector('[data-cv-import-selection-count]');
+    if (count) count.textContent = `${instance.importState.selected?.size || 0} selected`;
+    const apply = instance.container.querySelector('[data-cv-action="import-apply"]');
+    if (apply instanceof HTMLButtonElement) apply.disabled = !instance.importState.selected?.size;
+}
+
+async function applyPdfImport(instance) {
+    if (instance.importState.status !== 'review' || !instance.importState.importedProfile) return;
+    instance.profile = applyImportReview(instance.profile, instance.importState.importedProfile, instance.importState.selected);
+    instance.importState = { status: 'idle' };
+    markDirty(instance);
+    renderBuilder(instance);
+    await saveDraft(instance, { announce: true });
 }
 
 function markDirty(instance) {
@@ -666,7 +832,7 @@ async function removePhoto(instance) {
 }
 
 function validateProfile(profile, forPublish) {
-    if (!SLUG_PATTERN.test(profile.slug)) return { ok: false, message: 'Subdomain must be 3-40 lowercase letters, numbers, or hyphens' };
+    if (!SLUG_PATTERN.test(profile.slug)) return { ok: false, message: 'Public URL name must be 3-40 lowercase letters, numbers, or hyphens' };
     if (forPublish && !String(profile.personal.name || '').trim()) return { ok: false, message: 'Full name is required before publishing' };
     return { ok: true };
 }
@@ -724,7 +890,7 @@ function getDraftErrorMessage(error, fallback) {
         return 'CV storage migration has not been applied';
     }
     if (error?.code === '23505') {
-        return 'That subdomain is already reserved';
+        return 'That public URL name is already reserved';
     }
     if (error?.code === '42501') {
         return 'CV storage permissions are not configured';

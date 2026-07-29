@@ -45,7 +45,6 @@ const state = {
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 const githubOrg = (import.meta.env.VITE_GITHUB_ORG || '').trim();
-const cvBaseDomain = (import.meta.env.VITE_CV_BASE_DOMAIN || '').trim();
 const hasSupabaseConfig = Boolean(supabaseUrl && supabaseAnonKey);
 const supabase = hasSupabaseConfig
     ? createClient(supabaseUrl, supabaseAnonKey, {
@@ -556,7 +555,7 @@ function renderContent(sectionId) {
         void mountCvBuilder(wrapper, {
             supabase,
             session: state.session,
-            baseDomain: cvBaseDomain
+            publicBaseUrl: `${window.location.origin}${withBasePath('/cv')}`
         });
     } else if (state.docsData[sectionId]) {
         renderMarkdownPage(sectionId, wrapper);

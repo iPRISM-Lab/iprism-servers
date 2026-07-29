@@ -13,9 +13,14 @@
     "vite": "^6.0.0"
   },
   "dependencies": {
+    "@huggingface/transformers": "3.8.1",
     "@supabase/supabase-js": "^2.103.3",
     "highlight.js": "^11.11.1",
     "marked": "^18.0.1",
-    "marked-highlight": "^2.2.4"
+    "marked-highlight": "^2.2.4",
+    "pdfjs-dist": "5.4.624"
+  },
+  "overrides": {
+    "sharp": "0.35.0"
   }
 }

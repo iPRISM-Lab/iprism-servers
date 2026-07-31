@@ -3,6 +3,7 @@ import {
     PUBLICATION_TYPES,
     createEmptyProfile,
     escapeHtml,
+    getProgrammingLanguageIconUrl,
     normalizeProfile,
     renderCvHtml
 } from './supabase/functions/_shared/cv-template.js';
@@ -447,7 +448,7 @@ function renderSkillEditor(item, index) {
     const language = PROGRAMMING_LANGUAGES.find((entry) => entry.key === item.key) || PROGRAMMING_LANGUAGES[0];
     return `
         <article class="cv-repeat-item cv-skill-editor">
-            <img src="https://cdn.simpleicons.org/${language.icon}/${language.color}" alt="" aria-hidden="true">
+            <img src="${getProgrammingLanguageIconUrl(language)}" alt="" aria-hidden="true">
             ${selectField('Language', `skills.${index}.key`, item.key, PROGRAMMING_LANGUAGES.map((entry) => ({ value: entry.key, label: entry.label })))}
             ${selectField('Proficiency', `skills.${index}.level`, item.level, ['Familiar', 'Proficient', 'Advanced', 'Expert'].map((level) => ({ value: level, label: level })))}
             ${removeButton('skills', index, 'Remove programming language')}

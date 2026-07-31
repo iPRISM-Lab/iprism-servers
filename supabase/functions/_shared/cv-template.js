@@ -7,7 +7,7 @@ export const PROGRAMMING_LANGUAGES = [
     { key: 'java', label: 'Java', icon: 'openjdk', color: '437291' },
     { key: 'r', label: 'R', icon: 'r', color: '276DC3' },
     { key: 'julia', label: 'Julia', icon: 'julia', color: '9558B2' },
-    { key: 'matlab', label: 'MATLAB', icon: 'mathworks', color: '0076A8' },
+    { key: 'matlab', label: 'MATLAB', iconUrl: 'https://cdn.jsdelivr.net/gh/devicons/devicon@v2.17.0/icons/matlab/matlab-original.svg' },
     { key: 'rust', label: 'Rust', icon: 'rust', color: 'DEA584' },
     { key: 'go', label: 'Go', icon: 'go', color: '00ADD8' },
     { key: 'kotlin', label: 'Kotlin', icon: 'kotlin', color: '7F52FF' },
@@ -29,6 +29,11 @@ export const PUBLICATION_TYPES = [
 ];
 
 const languageByKey = new Map(PROGRAMMING_LANGUAGES.map((language) => [language.key, language]));
+
+export function getProgrammingLanguageIconUrl(language) {
+    if (!language) return '';
+    return language.iconUrl || `https://cdn.simpleicons.org/${language.icon}/${language.color}`;
+}
 
 export function createEmptyProfile(slug = '') {
     return {
@@ -105,7 +110,7 @@ export function renderCvHtml(profileValue, options = {}) {
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="Curriculum vitae of ${escapeHtml(fullName)}">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data: blob: https://cdn.simpleicons.org https://*.supabase.co; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data: blob: https://cdn.simpleicons.org https://cdn.jsdelivr.net https://*.supabase.co; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
     <title>${escapeHtml(title)}</title>
     <style>${renderTemplateCss()}</style>
 </head>
@@ -179,7 +184,7 @@ function renderContactItem(label, value) {
 function renderSkill(skill) {
     const language = skill.language;
     const level = String(skill.level || '').trim();
-    const iconUrl = `https://cdn.simpleicons.org/${language.icon}/${language.color}`;
+    const iconUrl = getProgrammingLanguageIconUrl(language);
     return `
         <div class="skill-item">
             <img src="${iconUrl}" alt="" aria-hidden="true">

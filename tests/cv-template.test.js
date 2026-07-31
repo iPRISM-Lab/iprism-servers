@@ -23,6 +23,7 @@ test('renders academic sections, publications, and programming icons', () => {
     profile.education.push({ degree: 'PhD', field: 'Computer Science', institution: 'Example Institute', endYear: '2019' });
     profile.publications.push({ type: 'Journal article', title: 'A useful paper', year: '2025', doi: '10.1000/example', featured: true });
     profile.skills.push({ key: 'python', level: 'Expert' });
+    profile.skills.push({ key: 'matlab', level: 'Advanced' });
 
     const html = renderCvHtml(profile, { photoUrl: './profile.jpg' });
 
@@ -30,5 +31,7 @@ test('renders academic sections, publications, and programming icons', () => {
     assert.match(html, /Selected publications/);
     assert.match(html, /https:\/\/doi.org\/10.1000\/example/);
     assert.match(html, /cdn.simpleicons.org\/python\/3776AB/);
+    assert.match(html, /cdn.jsdelivr.net\/gh\/devicons\/devicon@v2.17.0\/icons\/matlab\/matlab-original.svg/);
+    assert.match(html, /img-src[^";]*https:\/\/cdn.jsdelivr.net/);
     assert.match(html, /src="\.\/profile.jpg"/);
 });

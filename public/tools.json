@@ -21,6 +21,11 @@
       "type": "infra"
     },
     {
+      "id": "gis",
+      "title": "GIS",
+      "type": "infra"
+    },
+    {
       "id": "backup",
       "title": "Backup Strategy",
       "type": "ops"

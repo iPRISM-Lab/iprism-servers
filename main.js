@@ -3,6 +3,7 @@ import { marked } from 'marked';
 import { markedHighlight } from 'marked-highlight';
 import hljs from 'highlight.js';
 import './cv-builder.css';
+import { GIS_BRANCHES, findGisNodeById } from './gis-data.js';
 import {
     handleCvChange,
     handleCvClick,
@@ -41,6 +42,12 @@ const state = {
     sidebarOpen: false,
     authCheckId: 0
 };
+
+let gisResizeObserver = null;
+let gisCollapseTimer = null;
+let gisHoverPath = [];
+let gisPinnedPath = [];
+let gisLastTrigger = null;
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
@@ -460,6 +467,24 @@ function renderAppView() {
             </div>
         </div>
 
+        <div id="gis-modal" class="modal-overlay hidden" aria-hidden="true">
+            <section class="modal-content glass gis-modal-card" role="dialog" aria-modal="true" aria-labelledby="gis-modal-title" aria-describedby="gis-modal-summary">
+                <div class="gis-modal-accent" id="gis-modal-accent"></div>
+                <div class="gis-modal-header">
+                    <div>
+                        <p class="gis-modal-path" id="gis-modal-path"></p>
+                        <h2 id="gis-modal-title">GIS topic</h2>
+                    </div>
+                    <button class="gis-modal-close" type="button" data-action="close-gis-modal">Close</button>
+                </div>
+                <div class="gis-modal-body">
+                    <p class="gis-modal-status hidden" id="gis-modal-status"></p>
+                    <p id="gis-modal-summary"></p>
+                    <div class="gis-modal-sources" id="gis-modal-sources"></div>
+                </div>
+            </section>
+        </div>
+
     `;
 }
 
@@ -546,6 +571,7 @@ function renderContent(sectionId) {
     }
 
     unmountCvBuilder();
+    unmountGisMap();
     const wrapper = document.createElement('div');
     wrapper.className = 'fade-in';
 
@@ -557,6 +583,8 @@ function renderContent(sectionId) {
             session: state.session,
             publicBaseUrl: `${window.location.origin}${withBasePath('/cv')}`
         });
+    } else if (sectionId === 'gis') {
+        renderGisPage(wrapper);
     } else if (state.docsData[sectionId]) {
         renderMarkdownPage(sectionId, wrapper);
     } else if (sectionId.startsWith('doc-')) {
@@ -567,6 +595,391 @@ function renderContent(sectionId) {
 
     container.innerHTML = '';
     container.appendChild(wrapper);
+
+    if (sectionId === 'gis') {
+        window.requestAnimationFrame(mountGisMap);
+    }
+}
+
+function renderGisPage(container) {
+    container.innerHTML = `
+        <section class="gis-page" aria-labelledby="gis-page-title">
+            <header class="gis-page-header">
+                <div>
+                    <p class="gis-eyebrow">Infrastructure knowledge map</p>
+                    <h1 id="gis-page-title">Geographic Information Systems</h1>
+                    <p>Explore GIS as a science, a technology, and an operational capability. Hover or focus a branch to reveal its next level, then select a terminal point for context and official resources.</p>
+                </div>
+                <div class="gis-legend" aria-label="GIS branch colors">
+                    ${GIS_BRANCHES.map((branchItem) => `
+                        <span class="gis-legend-item">
+                            <span class="gis-legend-swatch" style="--gis-color: ${branchItem.color}"></span>
+                            ${escapeHtml(branchItem.label)}
+                        </span>
+                    `).join('')}
+                </div>
+            </header>
+
+            <div class="gis-map-shell glass">
+                <div class="gis-map-toolbar">
+                    <p><strong>Start at GIS.</strong> Move outward one branch at a time.</p>
+                    <button class="gis-reset-button" type="button" data-action="reset-gis-map">Reset map</button>
+                </div>
+                <div class="gis-map-scroll" id="gis-map-scroll" tabindex="0" aria-label="Interactive GIS mind map. Scroll horizontally if needed.">
+                    <div class="gis-map-stage" id="gis-map-stage">
+                        <canvas id="gis-map-canvas" aria-hidden="true"></canvas>
+                        <div class="gis-map-nodes" id="gis-map-nodes"></div>
+                    </div>
+                </div>
+                <p class="gis-map-help">Keyboard: Tab through branches, Enter to expand, and select any small terminal point to open details.</p>
+            </div>
+        </section>
+    `;
+}
+
+function mountGisMap() {
+    const viewport = document.querySelector('#gis-map-scroll');
+    const stage = document.querySelector('#gis-map-stage');
+    if (!viewport || !stage) {
+        return;
+    }
+
+    gisHoverPath = [];
+    gisPinnedPath = [];
+    renderGisMap();
+
+    stage.addEventListener('pointerover', handleGisPointerOver);
+    stage.addEventListener('pointerout', handleGisPointerOut);
+    stage.addEventListener('focusin', handleGisFocusIn);
+    stage.addEventListener('focusout', handleGisFocusOut);
+
+    gisResizeObserver = new ResizeObserver(() => renderGisMap());
+    gisResizeObserver.observe(viewport);
+}
+
+function unmountGisMap() {
+    if (gisResizeObserver) {
+        gisResizeObserver.disconnect();
+        gisResizeObserver = null;
+    }
+    if (gisCollapseTimer) {
+        window.clearTimeout(gisCollapseTimer);
+        gisCollapseTimer = null;
+    }
+    gisHoverPath = [];
+    gisPinnedPath = [];
+}
+
+function handleGisPointerOver(event) {
+    const nodeElement = event.target.closest?.('[data-gis-node-id]');
+    if (!(nodeElement instanceof HTMLElement)) {
+        return;
+    }
+    if (nodeElement.contains(event.relatedTarget)) {
+        return;
+    }
+    setGisHoverPath(nodeElement.dataset.gisNodeId || '');
+}
+
+function handleGisPointerOut(event) {
+    const nodeElement = event.target.closest?.('[data-gis-node-id]');
+    if (!(nodeElement instanceof HTMLElement) || nodeElement.contains(event.relatedTarget)) {
+        return;
+    }
+    scheduleGisHoverCollapse();
+}
+
+function handleGisFocusIn(event) {
+    const nodeElement = event.target.closest?.('[data-gis-node-id]');
+    if (nodeElement instanceof HTMLElement) {
+        setGisHoverPath(nodeElement.dataset.gisNodeId || '');
+    }
+}
+
+function handleGisFocusOut(event) {
+    const stage = document.querySelector('#gis-map-stage');
+    if (stage && !stage.contains(event.relatedTarget)) {
+        scheduleGisHoverCollapse();
+    }
+}
+
+function setGisHoverPath(nodeId) {
+    const node = findGisNodeById(nodeId);
+    if (!node) {
+        return;
+    }
+
+    if (gisCollapseTimer) {
+        window.clearTimeout(gisCollapseTimer);
+        gisCollapseTimer = null;
+    }
+
+    const nextPath = getGisNodePathIds(node.id);
+    if (nextPath.join('|') === gisHoverPath.join('|')) {
+        return;
+    }
+
+    gisHoverPath = nextPath;
+    renderGisMap();
+}
+
+function scheduleGisHoverCollapse() {
+    if (gisCollapseTimer) {
+        window.clearTimeout(gisCollapseTimer);
+    }
+    gisCollapseTimer = window.setTimeout(() => {
+        gisHoverPath = [];
+        renderGisMap();
+    }, 220);
+}
+
+function getGisNodePathIds(nodeId) {
+    const parts = nodeId.split('--');
+    return parts.map((_part, index) => parts.slice(0, index + 1).join('--'));
+}
+
+function getGisExpandedIds() {
+    return new Set([...gisPinnedPath, ...gisHoverPath]);
+}
+
+function collectVisibleGisNodes(expandedIds) {
+    const visible = [];
+
+    function visit(node, parentId, depth, categoryId) {
+        visible.push({ node, parentId, depth, categoryId });
+        if (node.children?.length && expandedIds.has(node.id)) {
+            node.children.forEach((child) => visit(child, node.id, depth + 1, categoryId));
+        }
+    }
+
+    GIS_BRANCHES.forEach((branchItem) => visit(branchItem, 'gis-root', 0, branchItem.id));
+    return visible;
+}
+
+function getGisLayout(width, height, visibleNodes) {
+    const rootX = width / 2;
+    const rootY = height / 2;
+    const categorySettings = {
+        definition: { y: 0.33, min: 0.055, max: 0.43 },
+        components: { y: 0.49, min: 0.37, max: 0.59 },
+        issues: { y: 0.64, min: 0.52, max: 0.95 },
+        trends: { y: 0.37, min: 0.06, max: 0.55 },
+        applications: { y: 0.69, min: 0.48, max: 0.96 }
+    };
+    const positions = new Map();
+    positions.set('gis-root', { x: rootX, y: rootY });
+
+    GIS_BRANCHES.forEach((branchItem) => {
+        const settings = categorySettings[branchItem.id] || { y: 0.5, min: 0.1, max: 0.9 };
+        const direction = branchItem.side === 'left' ? -1 : 1;
+        positions.set(branchItem.id, {
+            x: rootX + (direction * 82),
+            y: height * settings.y
+        });
+
+        const branchNodes = visibleNodes.filter((item) => item.categoryId === branchItem.id && item.depth > 0);
+        const maxDepth = Math.max(0, ...branchNodes.map((item) => item.depth));
+        for (let depth = 1; depth <= maxDepth; depth += 1) {
+            const depthNodes = branchNodes.filter((item) => item.depth === depth);
+            const rangeStart = height * settings.min;
+            const rangeEnd = height * settings.max;
+            const step = (rangeEnd - rangeStart) / (depthNodes.length + 1);
+            const offset = 60 + (depth * 150);
+
+            depthNodes.forEach((item, index) => {
+                positions.set(item.node.id, {
+                    x: rootX + (direction * offset),
+                    y: rangeStart + (step * (index + 1))
+                });
+            });
+        }
+    });
+
+    return positions;
+}
+
+function renderGisMap() {
+    const viewport = document.querySelector('#gis-map-scroll');
+    const stage = document.querySelector('#gis-map-stage');
+    const nodesLayer = document.querySelector('#gis-map-nodes');
+    if (!viewport || !stage || !nodesLayer) {
+        return;
+    }
+
+    const width = Math.max(1400, viewport.clientWidth - 2);
+    const height = Math.max(660, Math.min(790, window.innerHeight - 185));
+    stage.style.width = `${width}px`;
+    stage.style.height = `${height}px`;
+
+    const expandedIds = getGisExpandedIds();
+    const visibleNodes = collectVisibleGisNodes(expandedIds);
+    const positions = getGisLayout(width, height, visibleNodes);
+    const rootPosition = positions.get('gis-root');
+
+    nodesLayer.innerHTML = `
+        <div class="gis-root-node" id="gis-root-node" style="left: ${rootPosition.x}px; top: ${rootPosition.y}px">GIS</div>
+        ${visibleNodes.map(({ node, parentId, depth }) => {
+            const position = positions.get(node.id);
+            const isLeaf = !node.children?.length;
+            const isExpanded = expandedIds.has(node.id);
+            const sideClass = node.side === 'left' ? 'gis-node-left' : 'gis-node-right';
+            const depthClass = depth === 0 ? 'gis-node-category' : `gis-node-depth-${Math.min(depth, 3)}`;
+            const style = `left: ${position.x}px; top: ${position.y}px; --gis-color: ${node.color}`;
+
+            if (isLeaf) {
+                return `
+                    <div class="gis-node gis-leaf-node ${sideClass} ${depthClass}" data-gis-node-id="${escapeHtml(node.id)}" data-parent-id="${escapeHtml(parentId)}" data-side="${node.side}" style="${style}">
+                        <span class="gis-leaf-shell">
+                            ${node.side === 'left' ? `<button class="gis-leaf-point" type="button" data-gis-leaf-id="${escapeHtml(node.id)}" aria-label="Open information about ${escapeHtml(node.label)}"></button>` : ''}
+                            <span class="gis-node-label">${escapeHtml(node.label)}</span>
+                            ${node.side === 'right' ? `<button class="gis-leaf-point" type="button" data-gis-leaf-id="${escapeHtml(node.id)}" aria-label="Open information about ${escapeHtml(node.label)}"></button>` : ''}
+                        </span>
+                    </div>
+                `;
+            }
+
+            return `
+                <button class="gis-node gis-branch-node ${sideClass} ${depthClass}" type="button" data-gis-node-id="${escapeHtml(node.id)}" data-parent-id="${escapeHtml(parentId)}" data-side="${node.side}" style="${style}" aria-expanded="${isExpanded}">
+                    <span class="gis-node-label">${escapeHtml(node.label)}</span>
+                </button>
+            `;
+        }).join('')}
+    `;
+
+    window.requestAnimationFrame(() => drawGisConnections(visibleNodes));
+}
+
+function drawGisConnections(visibleNodes) {
+    const stage = document.querySelector('#gis-map-stage');
+    const canvas = document.querySelector('#gis-map-canvas');
+    const rootNode = document.querySelector('#gis-root-node');
+    if (!(stage instanceof HTMLElement) || !(canvas instanceof HTMLCanvasElement) || !rootNode) {
+        return;
+    }
+
+    const stageRect = stage.getBoundingClientRect();
+    const pixelRatio = window.devicePixelRatio || 1;
+    canvas.width = Math.round(stageRect.width * pixelRatio);
+    canvas.height = Math.round(stageRect.height * pixelRatio);
+    canvas.style.width = `${stageRect.width}px`;
+    canvas.style.height = `${stageRect.height}px`;
+
+    const context = canvas.getContext('2d');
+    if (!context) {
+        return;
+    }
+    context.scale(pixelRatio, pixelRatio);
+    context.lineCap = 'round';
+
+    const nodeElements = new Map();
+    nodeElements.set('gis-root', rootNode);
+    stage.querySelectorAll('[data-gis-node-id]').forEach((element) => {
+        nodeElements.set(element.dataset.gisNodeId, element);
+    });
+
+    visibleNodes.forEach(({ node, parentId, depth }) => {
+        const parentElement = nodeElements.get(parentId);
+        const childElement = nodeElements.get(node.id);
+        if (!parentElement || !childElement) {
+            return;
+        }
+
+        const parentRect = parentElement.getBoundingClientRect();
+        const childRect = childElement.getBoundingClientRect();
+        const isLeft = node.side === 'left';
+        const startX = (isLeft ? parentRect.left : parentRect.right) - stageRect.left;
+        const startY = (parentRect.top + (parentRect.height / 2)) - stageRect.top;
+        const endX = (isLeft ? childRect.right : childRect.left) - stageRect.left;
+        const endY = (childRect.top + (childRect.height / 2)) - stageRect.top;
+        const bend = Math.max(38, Math.abs(endX - startX) * 0.48);
+        const control1X = startX + (isLeft ? -bend : bend);
+        const control2X = endX + (isLeft ? bend : -bend);
+
+        context.beginPath();
+        context.moveTo(startX, startY);
+        context.bezierCurveTo(control1X, startY, control2X, endY, endX, endY);
+        context.strokeStyle = node.color;
+        context.globalAlpha = depth === 0 ? 0.95 : Math.max(0.62, 0.9 - (depth * 0.08));
+        context.lineWidth = depth === 0 ? 7 : Math.max(2.6, 5.2 - (depth * 0.8));
+        context.stroke();
+    });
+
+    context.globalAlpha = 1;
+}
+
+function toggleGisBranch(nodeId) {
+    const node = findGisNodeById(nodeId);
+    if (!node?.children?.length) {
+        return;
+    }
+
+    const nodePath = getGisNodePathIds(node.id);
+    const isPinned = gisPinnedPath.includes(node.id);
+    gisPinnedPath = isPinned ? nodePath.slice(0, -1) : nodePath;
+    gisHoverPath = [];
+    renderGisMap();
+
+    window.requestAnimationFrame(() => {
+        document.querySelector(`[data-gis-node-id="${CSS.escape(node.id)}"]`)?.focus();
+    });
+}
+
+function resetGisMap() {
+    gisHoverPath = [];
+    gisPinnedPath = [];
+    renderGisMap();
+}
+
+function openGisModal(nodeId, trigger) {
+    const node = findGisNodeById(nodeId);
+    const modal = document.querySelector('#gis-modal');
+    if (!node || node.children?.length || !modal) {
+        return;
+    }
+
+    const title = modal.querySelector('#gis-modal-title');
+    const path = modal.querySelector('#gis-modal-path');
+    const summary = modal.querySelector('#gis-modal-summary');
+    const status = modal.querySelector('#gis-modal-status');
+    const sourcesContainer = modal.querySelector('#gis-modal-sources');
+    const accent = modal.querySelector('#gis-modal-accent');
+    if (!title || !path || !summary || !status || !sourcesContainer || !accent) {
+        return;
+    }
+
+    gisLastTrigger = trigger instanceof HTMLElement ? trigger : null;
+    title.textContent = node.label;
+    path.textContent = node.path.join(' / ');
+    summary.textContent = node.summary;
+    accent.style.backgroundColor = node.color;
+    status.textContent = node.status || '';
+    status.classList.toggle('hidden', !node.status);
+    sourcesContainer.innerHTML = `
+        <h3>Official sources and tools</h3>
+        <div class="gis-source-list">
+            ${node.sources.map((source) => `
+                <a class="gis-source-link" href="${escapeHtml(source.href)}" target="_blank" rel="noopener noreferrer">
+                    <span>${escapeHtml(source.label)}</span>
+                    <span class="gis-source-link-action">Open source</span>
+                </a>
+            `).join('')}
+        </div>
+    `;
+
+    modal.classList.remove('hidden');
+    modal.setAttribute('aria-hidden', 'false');
+    modal.querySelector('[data-action="close-gis-modal"]')?.focus();
+}
+
+function closeGisModal() {
+    const modal = document.querySelector('#gis-modal');
+    if (!modal || modal.classList.contains('hidden')) {
+        return;
+    }
+    modal.classList.add('hidden');
+    modal.setAttribute('aria-hidden', 'true');
+    gisLastTrigger?.focus();
+    gisLastTrigger = null;
 }
 
 function renderDashboard(container) {
@@ -1228,6 +1641,12 @@ async function handleClick(event) {
         return;
     }
 
+    const gisBackdrop = target.id === 'gis-modal';
+    if (gisBackdrop) {
+        closeGisModal();
+        return;
+    }
+
     const actionNode = target.closest('[data-action]');
     if (actionNode instanceof HTMLElement) {
         const action = actionNode.dataset.action;
@@ -1268,6 +1687,35 @@ async function handleClick(event) {
         if (action === 'close-tool-modal') {
             event.preventDefault();
             closeToolModal();
+            return;
+        }
+
+        if (action === 'close-gis-modal') {
+            event.preventDefault();
+            closeGisModal();
+            return;
+        }
+
+        if (action === 'reset-gis-map') {
+            event.preventDefault();
+            resetGisMap();
+            return;
+        }
+    }
+
+    const gisLeafPoint = target.closest('[data-gis-leaf-id]');
+    if (gisLeafPoint instanceof HTMLElement) {
+        event.preventDefault();
+        openGisModal(gisLeafPoint.dataset.gisLeafId || '', gisLeafPoint);
+        return;
+    }
+
+    const gisBranch = target.closest('[data-gis-node-id]');
+    if (gisBranch instanceof HTMLElement) {
+        const node = findGisNodeById(gisBranch.dataset.gisNodeId || '');
+        if (node?.children?.length) {
+            event.preventDefault();
+            toggleGisBranch(node.id);
             return;
         }
     }
@@ -1373,6 +1821,7 @@ function handleKeydown(event) {
     if (event.key === 'Escape') {
         closeSearch();
         closeToolModal();
+        closeGisModal();
     }
 }
 

@@ -93,6 +93,19 @@ Open the local site shown by Vite, usually:
 http://localhost:5173/iprism-servers/
 ```
 
+## Keep Supabase Active
+
+The `Keep Supabase Active` GitHub Actions workflow makes three lightweight database requests per day. It uses the same `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` secrets as the Pages deployment and does not require a service-role key.
+
+Before enabling the schedule:
+
+1. If the project is paused or inactive, resume it from the Supabase Dashboard.
+2. Apply `supabase/migrations/20260811000224_add_keepalive_rpc.sql` to the Supabase project.
+3. Confirm both Supabase secrets are available in the `iprism-hub` GitHub environment.
+4. Run the workflow manually once from the Actions tab and check that it succeeds.
+
+The schedule runs at `05:17`, `13:17`, and `21:17` UTC. Supabase can still change its Free Plan inactivity criteria; a paid plan is the only guaranteed way to prevent automatic inactivity pausing.
+
 ## Useful Files
 
 - `docs/`: Markdown handbook pages.

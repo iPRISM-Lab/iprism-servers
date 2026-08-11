@@ -47,7 +47,9 @@ let gisResizeObserver = null;
 let gisCollapseTimer = null;
 let gisHoverPath = [];
 let gisPinnedPath = [];
+let gisShowAll = false;
 let gisLastTrigger = null;
+let gisLastTriggerId = '';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
@@ -131,7 +133,10 @@ async function loadDocs() {
 }
 
 async function initAuth() {
-    if (import.meta.env.DEV && window.location.search === '?gis-preview') {
+    const isLocalGisPreview = import.meta.env.DEV
+        && ['127.0.0.1', 'localhost'].includes(window.location.hostname)
+        && window.location.search === '?gis-preview';
+    if (isLocalGisPreview) {
         state.session = {
             user: {
                 email: 'preview@iprism.local',
@@ -634,7 +639,15 @@ function renderGisPage(container) {
             <div class="gis-map-shell glass">
                 <div class="gis-map-toolbar">
                     <p><strong>Start at GIS.</strong> Move outward one branch at a time.</p>
-                    <button class="gis-reset-button" type="button" data-action="reset-gis-map">Reset map</button>
+                    <div class="gis-map-actions">
+                        <button class="gis-view-all-button" type="button" data-action="toggle-gis-view-all" aria-label="Reveal all GIS branches" aria-pressed="false" title="Reveal all branches">
+                            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                <path d="M2.5 12s3.5-6.25 9.5-6.25S21.5 12 21.5 12 18 18.25 12 18.25 2.5 12 2.5 12Z" />
+                                <circle cx="12" cy="12" r="2.75" />
+                            </svg>
+                        </button>
+                        <button class="gis-reset-button" type="button" data-action="reset-gis-map">Reset map</button>
+                    </div>
                 </div>
                 <div class="gis-map-scroll" id="gis-map-scroll" tabindex="0" aria-label="Interactive GIS mind map. Scroll horizontally if needed.">
                     <div class="gis-map-stage" id="gis-map-stage">
@@ -657,7 +670,9 @@ function mountGisMap() {
 
     gisHoverPath = [];
     gisPinnedPath = [];
+    gisShowAll = false;
     renderGisMap();
+    window.requestAnimationFrame(centerGisMap);
 
     stage.addEventListener('pointerover', handleGisPointerOver);
     stage.addEventListener('pointerout', handleGisPointerOut);
@@ -679,6 +694,7 @@ function unmountGisMap() {
     }
     gisHoverPath = [];
     gisPinnedPath = [];
+    gisShowAll = false;
 }
 
 function handleGisPointerOver(event) {
@@ -730,8 +746,11 @@ function setGisHoverPath(nodeId) {
         return;
     }
 
+    const previousVisible = getGisVisibleNodeSignature();
     gisHoverPath = nextPath;
-    renderGisMap();
+    if (previousVisible !== getGisVisibleNodeSignature()) {
+        renderGisMap();
+    }
 }
 
 function scheduleGisHoverCollapse() {
@@ -739,8 +758,11 @@ function scheduleGisHoverCollapse() {
         window.clearTimeout(gisCollapseTimer);
     }
     gisCollapseTimer = window.setTimeout(() => {
+        const previousVisible = getGisVisibleNodeSignature();
         gisHoverPath = [];
-        renderGisMap();
+        if (previousVisible !== getGisVisibleNodeSignature()) {
+            renderGisMap();
+        }
     }, 220);
 }
 
@@ -750,7 +772,28 @@ function getGisNodePathIds(nodeId) {
 }
 
 function getGisExpandedIds() {
+    if (gisShowAll) {
+        const expandedIds = new Set();
+
+        function collectBranchIds(node) {
+            if (!node.children?.length) {
+                return;
+            }
+            expandedIds.add(node.id);
+            node.children.forEach(collectBranchIds);
+        }
+
+        GIS_BRANCHES.forEach(collectBranchIds);
+        return expandedIds;
+    }
+
     return new Set([...gisPinnedPath, ...gisHoverPath]);
+}
+
+function getGisVisibleNodeSignature() {
+    return collectVisibleGisNodes(getGisExpandedIds())
+        .map((item) => item.node.id)
+        .join('|');
 }
 
 function collectVisibleGisNodes(expandedIds) {
@@ -795,7 +838,7 @@ function getGisLayout(width, height, visibleNodes) {
             const rangeStart = height * settings.min;
             const rangeEnd = height * settings.max;
             const step = (rangeEnd - rangeStart) / (depthNodes.length + 1);
-            const offset = 60 + (depth * 150);
+            const offset = 60 + (depth * 120);
 
             depthNodes.forEach((item, index) => {
                 positions.set(item.node.id, {
@@ -815,6 +858,17 @@ function renderGisMap() {
     const nodesLayer = document.querySelector('#gis-map-nodes');
     if (!viewport || !stage || !nodesLayer) {
         return;
+    }
+
+    const viewAllButton = document.querySelector('[data-action="toggle-gis-view-all"]');
+    if (viewAllButton instanceof HTMLButtonElement) {
+        const accessibleLabel = gisShowAll
+            ? 'Return to progressive GIS branch view'
+            : 'Reveal all GIS branches';
+        viewAllButton.setAttribute('aria-label', accessibleLabel);
+        viewAllButton.setAttribute('aria-pressed', String(gisShowAll));
+        viewAllButton.title = gisShowAll ? 'Collapse to the starting branches' : 'Reveal all branches';
+        viewAllButton.classList.toggle('is-active', gisShowAll);
     }
 
     const width = Math.max(1400, viewport.clientWidth - 2);
@@ -938,7 +992,30 @@ function toggleGisBranch(nodeId) {
 function resetGisMap() {
     gisHoverPath = [];
     gisPinnedPath = [];
+    gisShowAll = false;
     renderGisMap();
+    window.requestAnimationFrame(centerGisMap);
+}
+
+function toggleGisViewAll() {
+    if (gisCollapseTimer) {
+        window.clearTimeout(gisCollapseTimer);
+        gisCollapseTimer = null;
+    }
+    gisShowAll = !gisShowAll;
+    gisHoverPath = [];
+    gisPinnedPath = [];
+    renderGisMap();
+    window.requestAnimationFrame(centerGisMap);
+}
+
+function centerGisMap() {
+    const viewport = document.querySelector('#gis-map-scroll');
+    const stage = document.querySelector('#gis-map-stage');
+    if (!viewport || !stage) {
+        return;
+    }
+    viewport.scrollLeft = Math.max(0, (stage.clientWidth - viewport.clientWidth) / 2);
 }
 
 function openGisModal(nodeId, trigger) {
@@ -959,6 +1036,8 @@ function openGisModal(nodeId, trigger) {
     }
 
     gisLastTrigger = trigger instanceof HTMLElement ? trigger : null;
+    gisLastTriggerId = node.id;
+    gisPinnedPath = getGisNodePathIds(node.id).slice(0, -1);
     title.textContent = node.label;
     path.textContent = node.path.join(' / ');
     summary.textContent = node.summary;
@@ -989,8 +1068,12 @@ function closeGisModal() {
     }
     modal.classList.add('hidden');
     modal.setAttribute('aria-hidden', 'true');
-    gisLastTrigger?.focus();
+    const currentTrigger = gisLastTriggerId
+        ? document.querySelector(`[data-gis-leaf-id="${CSS.escape(gisLastTriggerId)}"]`)
+        : null;
+    (currentTrigger || gisLastTrigger)?.focus();
     gisLastTrigger = null;
+    gisLastTriggerId = '';
 }
 
 function renderDashboard(container) {
@@ -1710,6 +1793,12 @@ async function handleClick(event) {
         if (action === 'reset-gis-map') {
             event.preventDefault();
             resetGisMap();
+            return;
+        }
+
+        if (action === 'toggle-gis-view-all') {
+            event.preventDefault();
+            toggleGisViewAll();
             return;
         }
     }

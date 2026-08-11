@@ -3,6 +3,7 @@ import { marked } from 'marked';
 import { markedHighlight } from 'marked-highlight';
 import hljs from 'highlight.js';
 import './cv-builder.css';
+import './weather-dataset.css';
 import { GIS_BRANCHES, findGisNodeById } from './gis-data.js';
 import {
     handleCvChange,
@@ -11,6 +12,7 @@ import {
     mountCvBuilder,
     unmountCvBuilder
 } from './cv-builder.js';
+import { mountWeatherDataset, unmountWeatherDataset } from './weather-dataset.js';
 
 const markdownAssetUrls = import.meta.glob('./assets/**/*', {
     query: '?url',
@@ -133,14 +135,16 @@ async function loadDocs() {
 }
 
 async function initAuth() {
-    const isLocalGisPreview = import.meta.env.DEV
+    const isLocalFeaturePreview = import.meta.env.DEV
         && ['127.0.0.1', 'localhost'].includes(window.location.hostname)
-        && window.location.search === '?gis-preview';
-    if (isLocalGisPreview) {
+        && ['?gis-preview', '?weather-preview'].includes(window.location.search);
+    if (isLocalFeaturePreview) {
         state.session = {
             user: {
                 email: 'preview@iprism.local',
-                user_metadata: { full_name: 'GIS Preview' }
+                user_metadata: {
+                    full_name: window.location.search === '?weather-preview' ? 'Weather Preview' : 'GIS Preview'
+                }
             }
         };
         state.authReady = true;
@@ -298,6 +302,7 @@ function renderRoute() {
     const path = getCurrentPath();
     if (path === ROUTES.auth) {
         unmountCvBuilder();
+        unmountWeatherDataset();
         if (hasAppSectionHash()) {
             navigateTo(ROUTES.auth, { replace: true });
             return;
@@ -315,6 +320,7 @@ function renderRoute() {
 
     if (!state.session) {
         unmountCvBuilder();
+        unmountWeatherDataset();
         navigateTo(ROUTES.auth, { replace: true });
         return;
     }
@@ -587,6 +593,7 @@ function renderContent(sectionId) {
     }
 
     unmountCvBuilder();
+    unmountWeatherDataset();
     unmountGisMap();
     const wrapper = document.createElement('div');
     wrapper.className = 'fade-in';
@@ -598,6 +605,11 @@ function renderContent(sectionId) {
             supabase,
             session: state.session,
             publicBaseUrl: `${window.location.origin}${withBasePath('/cv')}`
+        });
+    } else if (sectionId === 'weather-datasets') {
+        mountWeatherDataset(wrapper, {
+            supabase,
+            session: state.session
         });
     } else if (sectionId === 'gis') {
         renderGisPage(wrapper);

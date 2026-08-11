@@ -131,6 +131,17 @@ async function loadDocs() {
 }
 
 async function initAuth() {
+    if (import.meta.env.DEV && window.location.search === '?gis-preview') {
+        state.session = {
+            user: {
+                email: 'preview@iprism.local',
+                user_metadata: { full_name: 'GIS Preview' }
+            }
+        };
+        state.authReady = true;
+        return;
+    }
+
     if (!supabase) {
         state.authReady = true;
         state.flash = 'Supabase configuration is missing. Add the Vite auth environment variables to enable GitHub sign-in.';

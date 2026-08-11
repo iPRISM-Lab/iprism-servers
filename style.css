@@ -1448,6 +1448,10 @@ body.dark .gis-map-shell {
     line-height: 1.55;
 }
 
+.gis-modal-status.hidden {
+    display: none;
+}
+
 .gis-modal-sources {
     margin-top: 26px;
 }

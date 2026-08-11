@@ -309,7 +309,6 @@ function renderWeatherDataset() {
                         <span class="weather-source-badge"><span></span> Open-Meteo Historical</span>
                     </div>
                     <h1 id="weather-page-title">Weather Dataset Maker</h1>
-                    <p>Turn historical weather observations into a clean CSV, then keep the request details visible to the whole lab.</p>
                 </div>
                 <a class="weather-doc-link" href="https://open-meteo.com/en/docs/historical-weather-api" target="_blank" rel="noopener noreferrer">API documentation ↗</a>
             </header>

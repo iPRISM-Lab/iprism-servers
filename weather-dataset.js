@@ -696,7 +696,7 @@ function handleWeatherInput(event) {
     if (target.id === 'weather-city-search') {
         uiState.cityQuery = target.value;
         uiState.city = null;
-        scheduleCitySearch(target.value);
+        scheduleCitySearch(target.value, target.selectionStart ?? target.value.length);
         return;
     }
 
@@ -750,12 +750,12 @@ function handleWeatherKeydown(event) {
         event.preventDefault();
         uiState.citySelectedIndex = (uiState.citySelectedIndex + 1) % uiState.cityResults.length;
         renderWeatherDataset();
-        document.querySelector('#weather-city-search')?.focus();
+        focusCitySearch();
     } else if (event.key === 'ArrowUp') {
         event.preventDefault();
         uiState.citySelectedIndex = (uiState.citySelectedIndex - 1 + uiState.cityResults.length) % uiState.cityResults.length;
         renderWeatherDataset();
-        document.querySelector('#weather-city-search')?.focus();
+        focusCitySearch();
     } else if (event.key === 'Enter' && uiState.citySelectedIndex >= 0) {
         event.preventDefault();
         selectCity(uiState.citySelectedIndex);
@@ -763,11 +763,11 @@ function handleWeatherKeydown(event) {
         uiState.cityResults = [];
         uiState.citySearchStatus = 'idle';
         renderWeatherDataset();
-        document.querySelector('#weather-city-search')?.focus();
+        focusCitySearch();
     }
 }
 
-function scheduleCitySearch(query) {
+function scheduleCitySearch(query, caretPosition = query.length) {
     if (geocodingTimer) {
         window.clearTimeout(geocodingTimer);
     }
@@ -779,13 +779,13 @@ function scheduleCitySearch(query) {
         uiState.citySearchStatus = 'idle';
         uiState.citySelectedIndex = -1;
         renderWeatherDataset();
-        document.querySelector('#weather-city-search')?.focus();
+        focusCitySearch(caretPosition);
         return;
     }
 
     uiState.citySearchStatus = 'loading';
     renderWeatherDataset();
-    document.querySelector('#weather-city-search')?.focus();
+    focusCitySearch(caretPosition);
     geocodingTimer = window.setTimeout(() => void searchCities(trimmed), 320);
 }
 
@@ -813,7 +813,7 @@ async function searchCities(query) {
         uiState.citySelectedIndex = uiState.cityResults.length ? 0 : -1;
         uiState.citySearchStatus = 'ready';
         renderWeatherDataset();
-        document.querySelector('#weather-city-search')?.focus();
+        focusCitySearch();
     } catch (error) {
         if (error?.name === 'AbortError' || !uiState) {
             return;
@@ -822,6 +822,7 @@ async function searchCities(query) {
         uiState.citySearchStatus = 'error';
         uiState.generationMessage = error instanceof Error ? error.message : 'City search is unavailable.';
         renderWeatherDataset();
+        focusCitySearch();
     }
 }
 
@@ -1072,6 +1073,17 @@ function preserveFocusAndRender(selector, selectionStart) {
         input.focus();
         if (Number.isInteger(selectionStart)) input.setSelectionRange(selectionStart, selectionStart);
     }
+}
+
+function focusCitySearch(caretPosition = uiState?.cityQuery?.length ?? 0) {
+    const input = document.querySelector('#weather-city-search');
+    if (!(input instanceof HTMLInputElement)) {
+        return;
+    }
+
+    input.focus();
+    const safePosition = Math.min(Math.max(0, caretPosition), input.value.length);
+    input.setSelectionRange(safePosition, safePosition);
 }
 
 function downloadTextFile(content, fileName, type) {

@@ -653,7 +653,6 @@ body.dark .weather-selected-city-meta span {
 .weather-variable-card.selected {
     border-color: rgba(0, 120, 212, 0.36);
     background: var(--weather-accent-soft);
-    box-shadow: inset 3px 0 0 var(--weather-accent);
 }
 
 .weather-variable-card input {

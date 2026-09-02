@@ -27,6 +27,7 @@ const ROUTES = {
 
 const AMD_GRAFANA_URL = (import.meta.env.VITE_GRAFANA_URL || 'http://195.251.75.20:3030/').trim();
 const PORTAINER_AMD_URL = 'https://195.251.57.20:9443/';
+const PORTAINER_NVIDIA_URL = 'https://server.iprism.eu/portainer/#!/auth';
 const GITHUB_API_VERSION = '2022-11-28';
 const APP_BASE_PATH = import.meta.env.BASE_URL.replace(/\/$/, '');
 const root = document.querySelector('#app-root');
@@ -1198,6 +1199,26 @@ function renderMarkdownPage(docId, container) {
             rendered,
             'amd-server',
             [grafanaAction, portainerAction]
+        );
+    }
+
+    if (docId === 'nvidia-server') {
+        const portainerAction = `
+            <a class="doc-action-button glass" href="${escapeHtml(PORTAINER_NVIDIA_URL)}" target="_blank" rel="noopener noreferrer" aria-label="Open NVIDIA Portainer in a new tab" title="Open NVIDIA Portainer">
+                <span class="monitor-link-button-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" focusable="false">
+                        <path d="M14 3h7v7h-2V6.41l-9.29 9.3-1.42-1.42 9.3-9.29H14V3Z" />
+                        <path d="M5 5h6v2H7v10h10v-4h2v6H5V5Z" />
+                    </svg>
+                </span>
+                <span>Portainer</span>
+            </a>
+        `;
+
+        rendered = injectMarkdownTitleActions(
+            rendered,
+            'nvidia-server',
+            [portainerAction]
         );
     }
 

@@ -887,6 +887,31 @@ body.dark .weather-unit-popover {
     box-shadow: none;
 }
 
+.weather-generation-disclaimer {
+    grid-column: 1 / -1;
+    margin-top: 4px;
+    padding: 8px 10px;
+    border: 1px solid rgba(196, 55, 49, 0.24);
+    border-radius: 9px;
+    color: #9f312c;
+    background: rgba(196, 55, 49, 0.08);
+    font-size: 0.62rem;
+    line-height: 1.45;
+}
+
+.weather-generation-disclaimer a {
+    color: inherit;
+    font-weight: 750;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+body.dark .weather-generation-disclaimer {
+    color: #ffaaa5;
+    background: rgba(220, 67, 59, 0.11);
+    border-color: rgba(255, 123, 116, 0.24);
+}
+
 .weather-generation-feedback {
     grid-column: 1 / -1;
     margin-top: 10px;

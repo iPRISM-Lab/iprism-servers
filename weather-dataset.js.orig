@@ -412,9 +412,6 @@ function renderWeatherDataset() {
                         <span>${generationIsBusy ? 'Generating…' : 'Generate CSV'}</span>
                         <span aria-hidden="true">↓</span>
                     </button>
-                    <p class="weather-generation-disclaimer">
-                        Attribution to <a href="https://akoukosias.site" target="_blank" rel="noopener noreferrer">Athanasios Koukosias</a>, creator of this dataset tool, is optional. However, you must not claim a generated dataset as entirely your own work.
-                    </p>
                 </div>
                 <div class="weather-generation-feedback ${uiState.generationStatus}" role="status" aria-live="polite">
                     ${escapeHtml(uiState.generationMessage || validationMessage || (estimatedCells > 1500000 ? 'Large request: generation may take a little longer.' : 'The CSV downloads to your device; metadata is added to the library.'))}

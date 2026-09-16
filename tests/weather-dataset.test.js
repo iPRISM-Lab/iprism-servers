@@ -4,6 +4,8 @@ import {
     WEATHER_VARIABLES,
     buildOpenMeteoArchiveUrl,
     estimateDatasetRows,
+    parseCityQueries,
+    sampleRandomItems,
     validateDatasetDraft,
     weatherResponseToCsv
 } from '../weather-dataset.js';
@@ -53,9 +55,25 @@ test('builds an archive request with city, dates, variables, timezone, and units
     assert.equal(url.searchParams.get('precipitation_unit'), 'inch');
 });
 
+test('builds one Open-Meteo request for multiple locations', () => {
+    const berlin = { name: 'Berlin', latitude: 52.52, longitude: 13.405 };
+    const url = new URL(buildOpenMeteoArchiveUrl({
+        cities: [city, berlin],
+        frequency: 'daily',
+        variableIds: ['temperature_2m_mean'],
+        startDate: '2025-01-01',
+        endDate: '2025-01-02'
+    }));
+
+    assert.equal(url.searchParams.get('latitude'), `${city.latitude},${berlin.latitude}`);
+    assert.equal(url.searchParams.get('longitude'), `${city.longitude},${berlin.longitude}`);
+    assert.equal(url.searchParams.get('daily'), 'temperature_2m_mean');
+});
+
 test('estimates inclusive hourly and daily row counts', () => {
     assert.equal(estimateDatasetRows('2025-01-01', '2025-01-02', 'hourly'), 48);
     assert.equal(estimateDatasetRows('2025-01-01', '2025-01-02', 'daily'), 2);
+    assert.equal(estimateDatasetRows('2025-01-01', '2025-01-02', 'hourly', 3), 144);
     assert.equal(estimateDatasetRows('2025-01-02', '2025-01-01', 'daily'), 0);
 });
 
@@ -68,10 +86,42 @@ test('validates the required city, date order, archive limit, and columns', () =
     };
 
     assert.equal(validateDatasetDraft(base, '2025-02-01'), '');
-    assert.match(validateDatasetDraft({ ...base, city: null }, '2025-02-01'), /Choose a city/);
+    assert.match(validateDatasetDraft({ ...base, city: null }, '2025-02-01'), /Choose one or more cities/);
     assert.match(validateDatasetDraft({ ...base, startDate: '2025-01-03' }, '2025-02-01'), /start date/);
     assert.match(validateDatasetDraft({ ...base, endDate: '2025-02-02' }, '2025-02-01'), /up to today/);
     assert.match(validateDatasetDraft({ ...base, variableIds: [] }, '2025-02-01'), /at least one/);
+});
+
+test('parses comma-separated city names and samples without replacement', () => {
+    assert.deepEqual(parseCityQueries(' Athens, Berlin ,, Nairobi '), ['Athens', 'Berlin', 'Nairobi']);
+    assert.deepEqual(sampleRandomItems(['a', 'b', 'c'], 2, () => 0), ['b', 'c']);
+});
+
+test('combines multiple Open-Meteo location payloads into one CSV', () => {
+    const berlin = { name: 'Berlin', country: 'Germany', latitude: 52.52, longitude: 13.405 };
+    const csv = weatherResponseToCsv([
+        {
+            latitude: city.latitude,
+            longitude: city.longitude,
+            timezone: city.timezone,
+            hourly: { time: ['2025-01-01T00:00'], temperature_2m: [12.3] }
+        },
+        {
+            latitude: berlin.latitude,
+            longitude: berlin.longitude,
+            timezone: 'Europe/Berlin',
+            hourly: { time: ['2025-01-01T00:00'], temperature_2m: [2.1] }
+        }
+    ], {
+        cities: [city, berlin],
+        frequency: 'hourly',
+        variableIds: ['temperature_2m']
+    });
+
+    const lines = csv.trim().split('\n');
+    assert.equal(lines.length, 3);
+    assert.match(lines[1], /Athens/);
+    assert.match(lines[2], /Berlin/);
 });
 
 test('converts Open-Meteo rows to a machine-friendly escaped CSV', () => {

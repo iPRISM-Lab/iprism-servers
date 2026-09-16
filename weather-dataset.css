@@ -158,7 +158,10 @@
 .weather-field input,
 .weather-column-search input,
 .weather-name-field input,
-.weather-unit-popover select {
+.weather-unit-popover select,
+.weather-location-mode select,
+.weather-random-grid select,
+.weather-random-grid input {
     width: 100%;
     color: var(--text-primary);
     background: rgba(255, 255, 255, 0.18);
@@ -171,7 +174,10 @@ body.dark .weather-city-search > input,
 body.dark .weather-field input,
 body.dark .weather-column-search input,
 body.dark .weather-name-field input,
-body.dark .weather-unit-popover select {
+body.dark .weather-unit-popover select,
+body.dark .weather-location-mode select,
+body.dark .weather-random-grid select,
+body.dark .weather-random-grid input {
     background: rgba(0, 0, 0, 0.2);
 }
 
@@ -179,7 +185,10 @@ body.dark .weather-unit-popover select {
 .weather-field input:focus,
 .weather-column-search input:focus,
 .weather-name-field input:focus,
-.weather-unit-popover select:focus {
+.weather-unit-popover select:focus,
+.weather-location-mode select:focus,
+.weather-random-grid select:focus,
+.weather-random-grid input:focus {
     border-color: rgba(0, 120, 212, 0.58);
     box-shadow: 0 0 0 3px rgba(0, 120, 212, 0.11);
     background: rgba(255, 255, 255, 0.25);
@@ -189,7 +198,10 @@ body.dark .weather-city-search > input:focus,
 body.dark .weather-field input:focus,
 body.dark .weather-column-search input:focus,
 body.dark .weather-name-field input:focus,
-body.dark .weather-unit-popover select:focus {
+body.dark .weather-unit-popover select:focus,
+body.dark .weather-location-mode select:focus,
+body.dark .weather-random-grid select:focus,
+body.dark .weather-random-grid input:focus {
     background: rgba(0, 0, 0, 0.29);
 }
 
@@ -197,6 +209,80 @@ body.dark .weather-unit-popover select:focus {
     height: 48px;
     border-radius: 13px;
     padding: 0 45px 0 43px;
+}
+
+.weather-location-mode {
+    display: grid;
+    gap: 7px;
+    margin-top: 22px;
+}
+
+.weather-location-mode > span,
+.weather-random-grid label > span {
+    color: var(--text-secondary);
+    font-size: 0.68rem;
+    font-weight: 700;
+}
+
+.weather-location-mode select,
+.weather-random-grid select,
+.weather-random-grid input {
+    width: 100%;
+    height: 44px;
+    padding: 0 11px;
+    border: 1px solid var(--glass-border);
+    border-radius: 11px;
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.18);
+    outline: none;
+}
+
+.weather-city-search .weather-field-icon {
+    top: 24px;
+}
+
+.weather-location-help,
+.weather-location-error {
+    margin-top: 8px;
+    color: var(--text-secondary);
+    font-size: 0.68rem;
+    line-height: 1.45;
+}
+
+.weather-location-error {
+    color: #c7443e;
+}
+
+.weather-random-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(120px, 0.45fr);
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.weather-random-grid label {
+    display: grid;
+    gap: 7px;
+}
+
+.weather-random-button {
+    grid-column: 1 / -1;
+    min-height: 42px;
+    border: 1px solid rgba(0, 120, 212, 0.35);
+    border-radius: 11px;
+    color: var(--weather-accent);
+    background: var(--weather-accent-soft);
+    cursor: pointer;
+    font-weight: 750;
+}
+
+.weather-random-button:hover:not(:disabled) {
+    border-color: rgba(0, 120, 212, 0.65);
+}
+
+.weather-random-button:disabled {
+    opacity: 0.55;
+    cursor: wait;
 }
 
 .weather-field-icon {
@@ -341,6 +427,19 @@ body.dark .weather-city-results {
     background: rgba(127, 127, 127, 0.035);
 }
 
+.weather-selected-cities {
+    display: grid;
+    gap: 8px;
+    max-height: 270px;
+    margin-top: 14px;
+    overflow-y: auto;
+    padding-right: 2px;
+}
+
+.weather-selected-cities .weather-selected-city {
+    margin-top: 0;
+}
+
 .weather-location-empty {
     min-height: 71px;
     display: flex;
@@ -360,7 +459,7 @@ body.dark .weather-city-results {
 
 .weather-selected-city {
     display: grid;
-    grid-template-columns: 38px minmax(0, 1fr) auto;
+    grid-template-columns: 38px minmax(0, 1fr) auto 28px;
     align-items: center;
     gap: 11px;
     padding: 12px 13px;
@@ -421,6 +520,21 @@ body.dark .weather-city-results {
 
 body.dark .weather-selected-city-meta span {
     background: rgba(0, 0, 0, 0.16);
+}
+
+.weather-city-remove {
+    width: 28px;
+    height: 28px;
+    border: 0;
+    border-radius: 8px;
+    color: var(--text-secondary);
+    background: rgba(127, 127, 127, 0.1);
+    cursor: pointer;
+}
+
+.weather-city-remove:hover {
+    color: #c7443e;
+    background: rgba(199, 68, 62, 0.1);
 }
 
 .weather-date-grid {
@@ -1349,7 +1463,7 @@ body.dark .weather-generation-disclaimer {
     }
 
     .weather-selected-city {
-        grid-template-columns: 38px minmax(0, 1fr);
+        grid-template-columns: 38px minmax(0, 1fr) 28px;
     }
 
     .weather-selected-city-meta {
@@ -1359,7 +1473,7 @@ body.dark .weather-generation-disclaimer {
 
     .weather-generate-stats {
         display: grid;
-        grid-template-columns: repeat(3, 1fr);
+        grid-template-columns: repeat(2, 1fr);
     }
 
     .weather-generate-stats > div,

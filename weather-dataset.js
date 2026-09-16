@@ -1,8 +1,76 @@
 const OPEN_METEO_GEOCODING_URL = 'https://geocoding-api.open-meteo.com/v1/search';
 const OPEN_METEO_ARCHIVE_URL = 'https://archive-api.open-meteo.com/v1/archive';
+const COUNTRIES_NOW_CAPITALS_URL = 'https://countriesnow.space/api/v0.1/countries/capital';
+const COUNTRIES_NOW_CITIES_URL = 'https://countriesnow.space/api/v0.1/countries/cities/q';
 const LOCAL_LIBRARY_KEY = 'iprism-weather-dataset-library-v1';
 const MIN_ARCHIVE_DATE = '1940-01-01';
 const MAX_LIBRARY_ITEMS = 100;
+const MAX_RANDOM_CITIES = 20;
+const MAX_RANDOM_COUNTRIES = 10;
+
+const LOCATION_MODES = {
+    MANUAL: 'manual',
+    COUNTRY_RANDOM: 'country-random',
+    CONTINENT_RANDOM: 'continent-random'
+};
+
+const CONTINENTS = ['Africa', 'Americas', 'Asia', 'Europe', 'Oceania'];
+const CONTINENT_COUNTRY_CODES = {
+    Africa: 'DZ AO BJ BW BF BI CV CM CF TD KM CD CG CI DJ EG GQ ER SZ ET GA GM GH GN GW KE LS LR LY MG MW ML MR MU MA MZ NA NE NG RW ST SN SC SL SO ZA SS SD TZ TG TN UG ZM ZW'.split(' '),
+    Americas: 'AG AR BS BB BZ BO BR CA CL CO CR CU DM DO EC SV GD GT GY HT HN JM MX NI PA PY PE KN LC VC SR TT US UY VE'.split(' '),
+    Asia: 'AF AM AZ BH BD BT BN KH CN CY GE IN ID IR IQ IL JP JO KZ KW KG LA LB MY MV MN MM NP KP OM PK PS PH QA SA SG KR LK SY TW TJ TH TL TR TM AE UZ VN YE'.split(' '),
+    Europe: 'AL AD AT BY BE BA BG HR CZ DK EE FI FR DE GR HU IS IE IT XK LV LI LT LU MT MD MC ME NL MK NO PL PT RO RU SM RS SK SI ES SE CH UA GB VA'.split(' '),
+    Oceania: 'AU FJ KI MH FM NR NZ PW PG WS SB TO TV VU'.split(' ')
+};
+const FALLBACK_COUNTRIES = [
+    { name: 'Argentina', code: 'AR', capital: 'Buenos Aires', continent: 'Americas' },
+    { name: 'Australia', code: 'AU', capital: 'Canberra', continent: 'Oceania' },
+    { name: 'Brazil', code: 'BR', capital: 'Brasilia', continent: 'Americas' },
+    { name: 'Canada', code: 'CA', capital: 'Ottawa', continent: 'Americas' },
+    { name: 'China', code: 'CN', capital: 'Beijing', continent: 'Asia' },
+    { name: 'Egypt', code: 'EG', capital: 'Cairo', continent: 'Africa' },
+    { name: 'France', code: 'FR', capital: 'Paris', continent: 'Europe' },
+    { name: 'Germany', code: 'DE', capital: 'Berlin', continent: 'Europe' },
+    { name: 'Greece', code: 'GR', capital: 'Athens', continent: 'Europe' },
+    { name: 'India', code: 'IN', capital: 'New Delhi', continent: 'Asia' },
+    { name: 'Indonesia', code: 'ID', capital: 'Jakarta', continent: 'Asia' },
+    { name: 'Italy', code: 'IT', capital: 'Rome', continent: 'Europe' },
+    { name: 'Japan', code: 'JP', capital: 'Tokyo', continent: 'Asia' },
+    { name: 'Kenya', code: 'KE', capital: 'Nairobi', continent: 'Africa' },
+    { name: 'Mexico', code: 'MX', capital: 'Mexico City', continent: 'Americas' },
+    { name: 'Morocco', code: 'MA', capital: 'Rabat', continent: 'Africa' },
+    { name: 'New Zealand', code: 'NZ', capital: 'Wellington', continent: 'Oceania' },
+    { name: 'Nigeria', code: 'NG', capital: 'Abuja', continent: 'Africa' },
+    { name: 'South Africa', code: 'ZA', capital: 'Pretoria', continent: 'Africa' },
+    { name: 'South Korea', code: 'KR', capital: 'Seoul', continent: 'Asia' },
+    { name: 'Spain', code: 'ES', capital: 'Madrid', continent: 'Europe' },
+    { name: 'Sweden', code: 'SE', capital: 'Stockholm', continent: 'Europe' },
+    { name: 'United Kingdom', code: 'GB', capital: 'London', continent: 'Europe' },
+    { name: 'United States', code: 'US', capital: 'Washington, D.C.', continent: 'Americas' }
+];
+
+const FALLBACK_CITY_NAMES = {
+    AR: ['Buenos Aires', 'Cordoba', 'Rosario', 'Mendoza', 'La Plata'],
+    AU: ['Sydney', 'Melbourne', 'Brisbane', 'Perth', 'Adelaide'],
+    BR: ['Sao Paulo', 'Rio de Janeiro', 'Brasilia', 'Salvador', 'Fortaleza'],
+    CA: ['Toronto', 'Montreal', 'Vancouver', 'Calgary', 'Ottawa'],
+    CN: ['Beijing', 'Shanghai', 'Guangzhou', 'Shenzhen', 'Chengdu'],
+    EG: ['Cairo', 'Alexandria', 'Giza', 'Luxor', 'Aswan'],
+    FR: ['Paris', 'Marseille', 'Lyon', 'Toulouse', 'Nice'],
+    DE: ['Berlin', 'Hamburg', 'Munich', 'Cologne', 'Frankfurt'],
+    GR: ['Athens', 'Thessaloniki', 'Patras', 'Heraklion', 'Larissa'],
+    IN: ['New Delhi', 'Mumbai', 'Bengaluru', 'Kolkata', 'Chennai'],
+    ID: ['Jakarta', 'Surabaya', 'Bandung', 'Medan', 'Semarang'],
+    IT: ['Rome', 'Milan', 'Naples', 'Turin', 'Palermo'],
+    JP: ['Tokyo', 'Osaka', 'Yokohama', 'Nagoya', 'Sapporo'],
+    KE: ['Nairobi', 'Mombasa', 'Kisumu', 'Nakuru', 'Eldoret'],
+    MA: ['Casablanca', 'Rabat', 'Marrakesh', 'Fes', 'Tangier'],
+    MX: ['Mexico City', 'Guadalajara', 'Monterrey', 'Puebla', 'Tijuana'],
+    NG: ['Lagos', 'Abuja', 'Kano', 'Ibadan', 'Port Harcourt'],
+    NZ: ['Auckland', 'Wellington', 'Christchurch', 'Hamilton', 'Dunedin'],
+    SE: ['Stockholm', 'Gothenburg', 'Malmo', 'Uppsala', 'Vasteras'],
+    ZA: ['Johannesburg', 'Cape Town', 'Durban', 'Pretoria', 'Gqeberha']
+};
 
 const variable = (id, label, group, unit, description) => ({
     id,
@@ -146,9 +214,10 @@ export function getWeatherVariables(frequency) {
 
 export function buildOpenMeteoArchiveUrl(draft) {
     const frequency = draft.frequency === 'daily' ? 'daily' : 'hourly';
+    const cities = getDraftCities(draft);
     const params = new URLSearchParams({
-        latitude: String(draft.city.latitude),
-        longitude: String(draft.city.longitude),
+        latitude: cities.map((city) => city.latitude).join(','),
+        longitude: cities.map((city) => city.longitude).join(','),
         start_date: draft.startDate,
         end_date: draft.endDate,
         [frequency]: draft.variableIds.join(','),
@@ -161,7 +230,7 @@ export function buildOpenMeteoArchiveUrl(draft) {
     return `${OPEN_METEO_ARCHIVE_URL}?${params.toString()}`;
 }
 
-export function estimateDatasetRows(startDate, endDate, frequency = 'hourly') {
+export function estimateDatasetRows(startDate, endDate, frequency = 'hourly', cityCount = 1) {
     const start = parseDate(startDate);
     const end = parseDate(endDate);
     if (!start || !end || end < start) {
@@ -169,12 +238,13 @@ export function estimateDatasetRows(startDate, endDate, frequency = 'hourly') {
     }
 
     const dayCount = Math.floor((end.getTime() - start.getTime()) / 86400000) + 1;
-    return dayCount * (frequency === 'daily' ? 1 : 24);
+    return dayCount * (frequency === 'daily' ? 1 : 24) * Math.max(1, Number(cityCount) || 1);
 }
 
 export function validateDatasetDraft(draft, today = formatDate(new Date())) {
-    if (!draft.city || !Number.isFinite(Number(draft.city.latitude)) || !Number.isFinite(Number(draft.city.longitude))) {
-        return 'Choose a city from the search results.';
+    const cities = getDraftCities(draft);
+    if (!cities.length || cities.some((city) => !Number.isFinite(Number(city.latitude)) || !Number.isFinite(Number(city.longitude)))) {
+        return 'Choose one or more cities.';
     }
     if (!draft.startDate || !draft.endDate) {
         return 'Choose a start and end date.';
@@ -196,28 +266,52 @@ export function validateDatasetDraft(draft, today = formatDate(new Date())) {
 
 export function weatherResponseToCsv(payload, draft) {
     const frequency = draft.frequency === 'daily' ? 'daily' : 'hourly';
-    const values = payload?.[frequency];
-    if (!values?.time?.length) {
+    const cities = getDraftCities(draft);
+    const payloads = Array.isArray(payload) ? payload : [payload];
+    const baseColumns = ['time', 'city', 'country', 'latitude', 'longitude', 'elevation', 'timezone'];
+    const headers = [...baseColumns, ...draft.variableIds];
+    const rows = payloads.flatMap((locationPayload, locationIndex) => {
+        const city = cities[locationIndex] || cities[0];
+        const values = locationPayload?.[frequency];
+        if (!city || !values?.time?.length) {
+            return [];
+        }
+        return values.time.map((time, index) => {
+            const base = [
+                time,
+                city.name,
+                city.country || '',
+                locationPayload.latitude ?? city.latitude,
+                locationPayload.longitude ?? city.longitude,
+                locationPayload.elevation ?? city.elevation ?? '',
+                locationPayload.timezone || city.timezone || 'GMT'
+            ];
+            const weatherValues = draft.variableIds.map((id) => values[id]?.[index] ?? '');
+            return [...base, ...weatherValues].map(csvCell).join(',');
+        });
+    });
+
+    if (!rows.length) {
         throw new Error(`Open-Meteo returned no ${frequency} rows for this request.`);
     }
 
-    const baseColumns = ['time', 'city', 'country', 'latitude', 'longitude', 'elevation', 'timezone'];
-    const headers = [...baseColumns, ...draft.variableIds];
-    const rows = values.time.map((time, index) => {
-        const base = [
-            time,
-            draft.city.name,
-            draft.city.country || '',
-            payload.latitude ?? draft.city.latitude,
-            payload.longitude ?? draft.city.longitude,
-            payload.elevation ?? draft.city.elevation ?? '',
-            payload.timezone || draft.city.timezone || 'GMT'
-        ];
-        const weatherValues = draft.variableIds.map((id) => values[id]?.[index] ?? '');
-        return [...base, ...weatherValues].map(csvCell).join(',');
-    });
-
     return `${headers.map(csvCell).join(',')}\n${rows.join('\n')}\n`;
+}
+
+export function parseCityQueries(value) {
+    return String(value || '')
+        .split(',')
+        .map((name) => name.trim())
+        .filter(Boolean);
+}
+
+export function sampleRandomItems(items, count, random = Math.random) {
+    const pool = Array.from(items || []);
+    for (let index = pool.length - 1; index > 0; index -= 1) {
+        const swapIndex = Math.floor(random() * (index + 1));
+        [pool[index], pool[swapIndex]] = [pool[swapIndex], pool[index]];
+    }
+    return pool.slice(0, Math.max(0, Math.min(pool.length, Number(count) || 0)));
 }
 
 export function mountWeatherDataset(container, options = {}) {
@@ -232,6 +326,7 @@ export function mountWeatherDataset(container, options = {}) {
     container.addEventListener('change', handleWeatherChange);
     container.addEventListener('keydown', handleWeatherKeydown);
     void loadLibrary();
+    void loadCountryOptions();
 }
 
 export function unmountWeatherDataset() {
@@ -261,11 +356,19 @@ function createInitialState() {
     start.setDate(start.getDate() - 29);
 
     return {
-        city: null,
+        locationMode: LOCATION_MODES.MANUAL,
+        cities: [],
         cityQuery: '',
         cityResults: [],
         citySearchStatus: 'idle',
         citySelectedIndex: -1,
+        countries: FALLBACK_COUNTRIES,
+        countryStatus: 'loading',
+        randomCountryCode: 'GR',
+        randomCityCount: 3,
+        continent: 'Europe',
+        randomCountryCount: 3,
+        randomStatus: 'idle',
         startDate: formatDate(start),
         endDate: formatDate(yesterday),
         frequency: 'hourly',
@@ -292,13 +395,14 @@ function renderWeatherDataset() {
     }
 
     const selected = uiState.selectedByFrequency[uiState.frequency];
-    const estimatedRows = estimateDatasetRows(uiState.startDate, uiState.endDate, uiState.frequency);
+    const locationCount = getEstimatedLocationCount();
+    const estimatedRows = estimateDatasetRows(uiState.startDate, uiState.endDate, uiState.frequency, locationCount);
     const estimatedCells = estimatedRows * (selected.size + 7);
     const user = mountedOptions?.session?.user || {};
     const creator = getCreatorName(user);
     const today = formatDate(new Date());
     const generationIsBusy = uiState.generationStatus === 'loading';
-    const validationMessage = validateDatasetDraft(getDraft(), today);
+    const validationMessage = validateBuilderDraft(today);
 
     mountedContainer.innerHTML = `
         <section class="weather-page" aria-labelledby="weather-page-title">
@@ -318,17 +422,12 @@ function renderWeatherDataset() {
                     <div class="weather-panel-heading">
                         <span class="weather-step">1</span>
                         <div>
-                            <h2 id="weather-location-title">Choose a city</h2>
-                            <p>Search any city or postal code worldwide.</p>
+                            <h2 id="weather-location-title">Choose locations</h2>
+                            <p>Select cities directly or create a randomized geographic sample.</p>
                         </div>
                     </div>
-                    <div class="weather-city-search ${uiState.cityResults.length || uiState.citySearchStatus !== 'idle' ? 'is-open' : ''}">
-                        <span class="weather-field-icon" aria-hidden="true">⌕</span>
-                        <input id="weather-city-search" type="search" value="${escapeHtml(uiState.cityQuery)}" placeholder="Search for Athens, Berlin, 10001…" autocomplete="off" aria-label="Search for a city" aria-controls="weather-city-results" aria-expanded="${uiState.cityResults.length > 0}">
-                        ${uiState.cityQuery ? '<button type="button" class="weather-input-clear" data-weather-action="clear-city" aria-label="Clear city">×</button>' : ''}
-                        ${renderCityResults()}
-                    </div>
-                    ${renderSelectedCity()}
+                    ${renderLocationSelector()}
+                    ${renderSelectedCities()}
                 </section>
 
                 <section class="weather-panel glass weather-window-panel" aria-labelledby="weather-window-title">
@@ -392,6 +491,7 @@ function renderWeatherDataset() {
             <section class="weather-generate-bar glass" aria-label="Dataset generation summary">
                 <div class="weather-generate-stats">
                     <div><span>Estimated rows</span><strong>${formatNumber(estimatedRows)}</strong></div>
+                    <div><span>Locations</span><strong>${formatNumber(locationCount)}</strong></div>
                     <div><span>Weather columns</span><strong>${selected.size}</strong></div>
                     <div><span>Created by</span><strong>${escapeHtml(creator)}</strong></div>
                 </div>
@@ -424,15 +524,73 @@ function renderWeatherDataset() {
             <section class="weather-library" aria-labelledby="weather-library-title">
                 <div class="weather-library-header">
                     <div>
-                        <p class="weather-eyebrow">Shared history</p>
-                        <h2 id="weather-library-title">Dataset library</h2>
-                        <p>Request metadata is ready now. Server-hosted file retrieval will connect here later.</p>
+                        <p class="weather-eyebrow">Private history</p>
+                        <h2 id="weather-library-title">Your dataset library</h2>
+                        <p>Only datasets created by your account are shown here. Server-hosted file retrieval will connect later.</p>
                     </div>
                     <button class="weather-refresh-button" type="button" data-weather-action="refresh-library" ${uiState.libraryStatus === 'loading' ? 'disabled' : ''}>↻ Refresh</button>
                 </div>
                 ${renderLibrary()}
             </section>
         </section>
+    `;
+}
+
+function renderLocationSelector() {
+    const countryOptions = uiState.countries.map((country) => `
+        <option value="${escapeHtml(country.code)}" ${uiState.randomCountryCode === country.code ? 'selected' : ''}>${escapeHtml(country.name)}</option>
+    `).join('');
+    const randomIsBusy = uiState.randomStatus === 'loading';
+
+    return `
+        <label class="weather-location-mode">
+            <span>Location selection method</span>
+            <select data-weather-field="location-mode">
+                <option value="${LOCATION_MODES.MANUAL}" ${uiState.locationMode === LOCATION_MODES.MANUAL ? 'selected' : ''}>Select city (one or more)</option>
+                <option value="${LOCATION_MODES.COUNTRY_RANDOM}" ${uiState.locationMode === LOCATION_MODES.COUNTRY_RANDOM ? 'selected' : ''}>Random cities from a country</option>
+                <option value="${LOCATION_MODES.CONTINENT_RANDOM}" ${uiState.locationMode === LOCATION_MODES.CONTINENT_RANDOM ? 'selected' : ''}>Random countries from a continent</option>
+            </select>
+        </label>
+        ${uiState.locationMode === LOCATION_MODES.MANUAL ? `
+            <div class="weather-city-search ${uiState.cityResults.length || uiState.citySearchStatus !== 'idle' ? 'is-open' : ''}">
+                <span class="weather-field-icon" aria-hidden="true">⌕</span>
+                <input id="weather-city-search" type="text" value="${escapeHtml(uiState.cityQuery)}" placeholder="Athens, Berlin, Nairobi…" autocomplete="off" aria-label="Search for one or more comma-separated cities" aria-describedby="weather-city-search-help" aria-controls="weather-city-results" aria-expanded="${uiState.cityResults.length > 0}">
+                ${uiState.cityQuery ? '<button type="button" class="weather-input-clear" data-weather-action="clear-city" aria-label="Clear all cities">×</button>' : ''}
+                ${renderCityResults()}
+            </div>
+            <p id="weather-city-search-help" class="weather-location-help">Separate cities with commas. Suggestions apply to the city currently being typed; any remaining names are resolved when you generate.</p>
+        ` : ''}
+        ${uiState.locationMode === LOCATION_MODES.COUNTRY_RANDOM ? `
+            <div class="weather-random-grid">
+                <label>
+                    <span>Country</span>
+                    <select data-weather-field="random-country" ${uiState.countryStatus === 'loading' ? 'disabled' : ''}>${countryOptions}</select>
+                </label>
+                <label>
+                    <span>Number of cities</span>
+                    <input type="number" min="1" max="${MAX_RANDOM_CITIES}" value="${uiState.randomCityCount}" data-weather-field="random-city-count">
+                </label>
+                <button type="button" class="weather-random-button" data-weather-action="pick-random-locations" ${randomIsBusy ? 'disabled' : ''}>${randomIsBusy ? 'Picking…' : 'Pick random cities'}</button>
+            </div>
+            <p class="weather-location-help">Cities are sampled from the selected country, then verified through Open-Meteo geocoding.</p>
+        ` : ''}
+        ${uiState.locationMode === LOCATION_MODES.CONTINENT_RANDOM ? `
+            <div class="weather-random-grid">
+                <label>
+                    <span>Continent</span>
+                    <select data-weather-field="continent">
+                        ${CONTINENTS.map((continent) => `<option value="${continent}" ${uiState.continent === continent ? 'selected' : ''}>${continent}</option>`).join('')}
+                    </select>
+                </label>
+                <label>
+                    <span>Number of countries</span>
+                    <input type="number" min="1" max="${MAX_RANDOM_COUNTRIES}" value="${uiState.randomCountryCount}" data-weather-field="random-country-count">
+                </label>
+                <button type="button" class="weather-random-button" data-weather-action="pick-random-locations" ${randomIsBusy ? 'disabled' : ''}>${randomIsBusy ? 'Picking…' : 'Pick countries + cities'}</button>
+            </div>
+            <p class="weather-location-help">For every random country, the dataset includes its capital and one additional random city—an equal number of capitals and extra cities.</p>
+        ` : ''}
+        ${uiState.randomStatus === 'error' && uiState.generationMessage ? `<p class="weather-location-error" role="alert">${escapeHtml(uiState.generationMessage)}</p>` : ''}
     `;
 }
 
@@ -466,29 +624,33 @@ function renderCityResults() {
     `;
 }
 
-function renderSelectedCity() {
-    if (!uiState.city) {
+function renderSelectedCities() {
+    if (!uiState.cities.length) {
         return `
             <div class="weather-location-empty">
                 <span aria-hidden="true">◎</span>
-                <p>Your selected city and coordinates will appear here.</p>
+                <p>${uiState.locationMode === LOCATION_MODES.MANUAL && parseCityQueries(uiState.cityQuery).length ? `${parseCityQueries(uiState.cityQuery).length} typed location${parseCityQueries(uiState.cityQuery).length === 1 ? '' : 's'} will be resolved before generation.` : 'Your selected locations and coordinates will appear here.'}</p>
             </div>
         `;
     }
 
     return `
-        <div class="weather-selected-city">
-            <div class="weather-selected-city-icon" aria-hidden="true">⌖</div>
-            <div>
-                <span>Selected location</span>
-                <strong>${escapeHtml(uiState.city.name)}</strong>
-                <small>${escapeHtml(formatCityContext(uiState.city))}</small>
-            </div>
-            <div class="weather-selected-city-meta">
-                <span>${Number(uiState.city.latitude).toFixed(4)}°</span>
-                <span>${Number(uiState.city.longitude).toFixed(4)}°</span>
-                ${Number.isFinite(Number(uiState.city.elevation)) ? `<span>${Math.round(Number(uiState.city.elevation))} m</span>` : ''}
-            </div>
+        <div class="weather-selected-cities" aria-label="Selected locations">
+            ${uiState.cities.map((city, index) => `
+                <div class="weather-selected-city">
+                    <div class="weather-selected-city-icon" aria-hidden="true">⌖</div>
+                    <div>
+                        <span>Location ${index + 1}</span>
+                        <strong>${escapeHtml(city.name)}</strong>
+                        <small>${escapeHtml(formatCityContext(city))}</small>
+                    </div>
+                    <div class="weather-selected-city-meta">
+                        <span>${Number(city.latitude).toFixed(4)}°</span>
+                        <span>${Number(city.longitude).toFixed(4)}°</span>
+                    </div>
+                    <button type="button" class="weather-city-remove" data-weather-remove-city="${index}" aria-label="Remove ${escapeHtml(city.name)}">×</button>
+                </div>
+            `).join('')}
         </div>
     `;
 }
@@ -545,7 +707,7 @@ function renderLibrary() {
             <div class="weather-library-state glass">
                 <span class="weather-library-loader"></span>
                 <h3>Loading dataset history</h3>
-                <p>Checking shared metadata and this browser's recent creations.</p>
+                <p>Checking your private metadata and this browser's recent creations.</p>
             </div>
         `;
     }
@@ -571,7 +733,10 @@ function renderLibraryItem(item) {
     const variables = Array.isArray(item.variable_labels) ? item.variable_labels : [];
     const visibleVariables = variables.slice(0, 4);
     const extraCount = Math.max(0, variables.length - visibleVariables.length);
-    const city = normalizeStoredCity(item.city);
+    const cities = normalizeStoredCities(item);
+    const city = cities[0] || {};
+    const visibleCityNames = cities.slice(0, 3).map((entry) => entry.name).filter(Boolean);
+    const extraCityCount = Math.max(0, cities.length - visibleCityNames.length);
     const generatedAt = formatDateTime(item.generated_at);
     const sourceLabel = item.storage_status === 'stored' ? 'Stored file' : 'Metadata only';
 
@@ -584,7 +749,7 @@ function renderLibraryItem(item) {
                         <h3>${escapeHtml(item.name || item.file_name || 'Weather dataset')}</h3>
                         <span class="weather-storage-badge">${sourceLabel}</span>
                     </div>
-                    <p class="weather-library-location">⌖ ${escapeHtml(city.name || 'Unknown city')}${city.country ? `, ${escapeHtml(city.country)}` : ''}</p>
+                    <p class="weather-library-location">⌖ ${escapeHtml(visibleCityNames.join(', ') || 'Unknown city')}${extraCityCount ? ` +${extraCityCount} more` : ''}</p>
                     <div class="weather-library-tags">
                         <span>${item.temporal_resolution === 'daily' ? 'Daily' : 'Hourly'}</span>
                         <span>${escapeHtml(item.start_date || '')} → ${escapeHtml(item.end_date || '')}</span>
@@ -609,7 +774,7 @@ function renderLibraryItem(item) {
                 <div>
                     <p><strong>Columns:</strong> ${escapeHtml(variables.join(', ') || 'Not recorded')}</p>
                     <p><strong>File name:</strong> ${escapeHtml(item.file_name || 'Not recorded')}</p>
-                    <p><strong>Coordinates:</strong> ${Number(city.latitude || 0).toFixed(4)}, ${Number(city.longitude || 0).toFixed(4)}</p>
+                    <p><strong>Locations:</strong> ${escapeHtml(cities.map((entry) => `${entry.name || 'Unknown'} (${Number(entry.latitude || 0).toFixed(4)}, ${Number(entry.longitude || 0).toFixed(4)})`).join('; '))}</p>
                 </div>
             </details>
         </article>
@@ -626,6 +791,18 @@ async function handleWeatherClick(event) {
     if (cityResult instanceof HTMLElement) {
         event.preventDefault();
         selectCity(Number(cityResult.dataset.weatherCityIndex));
+        return;
+    }
+
+    const removeCity = target.closest('[data-weather-remove-city]');
+    if (removeCity instanceof HTMLElement) {
+        event.preventDefault();
+        const index = Number(removeCity.dataset.weatherRemoveCity);
+        uiState.cities.splice(index, 1);
+        if (uiState.locationMode === LOCATION_MODES.MANUAL) {
+            uiState.cityQuery = uiState.cities.map((city) => city.name).join(', ');
+        }
+        renderWeatherDataset();
         return;
     }
 
@@ -663,12 +840,15 @@ async function handleWeatherClick(event) {
     event.preventDefault();
     switch (actionNode.dataset.weatherAction) {
         case 'clear-city':
-            uiState.city = null;
+            uiState.cities = [];
             uiState.cityQuery = '';
             uiState.cityResults = [];
             uiState.citySearchStatus = 'idle';
             renderWeatherDataset();
             document.querySelector('#weather-city-search')?.focus();
+            break;
+        case 'pick-random-locations':
+            await pickRandomLocations();
             break;
         case 'select-visible':
             getVisibleVariables().forEach((item) => uiState.selectedByFrequency[uiState.frequency].add(item.id));
@@ -697,7 +877,7 @@ function handleWeatherInput(event) {
 
     if (target.id === 'weather-city-search') {
         uiState.cityQuery = target.value;
-        uiState.city = null;
+        retainCitiesPresentInQuery(target.value);
         scheduleCitySearch(target.value, target.selectionStart ?? target.value.length);
         return;
     }
@@ -735,6 +915,26 @@ function handleWeatherChange(event) {
     }
 
     const field = target.dataset.weatherField;
+    if (field === 'location-mode') {
+        uiState.locationMode = Object.values(LOCATION_MODES).includes(target.value) ? target.value : LOCATION_MODES.MANUAL;
+        resetLocationSelection();
+    }
+    if (field === 'random-country') {
+        uiState.randomCountryCode = target.value;
+        uiState.cities = [];
+    }
+    if (field === 'random-city-count') {
+        uiState.randomCityCount = clampInteger(target.value, 1, MAX_RANDOM_CITIES);
+        uiState.cities = [];
+    }
+    if (field === 'continent') {
+        uiState.continent = CONTINENTS.includes(target.value) ? target.value : 'Europe';
+        uiState.cities = [];
+    }
+    if (field === 'random-country-count') {
+        uiState.randomCountryCount = clampInteger(target.value, 1, MAX_RANDOM_COUNTRIES);
+        uiState.cities = [];
+    }
     if (field === 'start-date') uiState.startDate = target.value;
     if (field === 'end-date') uiState.endDate = target.value;
     if (field === 'temperature-unit') uiState.temperatureUnit = target.value;
@@ -775,7 +975,7 @@ function scheduleCitySearch(query, caretPosition = query.length) {
     }
     geocodingController?.abort();
 
-    const trimmed = query.trim();
+    const trimmed = getActiveCityQuery(query);
     if (trimmed.length < 2) {
         uiState.cityResults = [];
         uiState.citySearchStatus = 'idle';
@@ -808,7 +1008,7 @@ async function searchCities(query) {
             throw new Error(`City search failed (${response.status}).`);
         }
         const payload = await response.json();
-        if (!uiState || uiState.cityQuery.trim() !== query) {
+        if (!uiState || getActiveCityQuery(uiState.cityQuery) !== query) {
             return;
         }
         uiState.cityResults = payload.results || [];
@@ -834,22 +1034,218 @@ function selectCity(index) {
         return;
     }
 
-    uiState.city = {
+    const normalizedCity = normalizeGeocodingCity(city);
+    const segments = String(uiState.cityQuery || '').split(',');
+    segments[segments.length - 1] = normalizedCity.name.replace(/,/g, '');
+    uiState.cityQuery = `${segments.map((segment) => segment.trim()).filter(Boolean).join(', ')}, `;
+    uiState.cities = dedupeCities([...uiState.cities, normalizedCity]);
+    uiState.cityResults = [];
+    uiState.citySearchStatus = 'idle';
+    uiState.citySelectedIndex = -1;
+    renderWeatherDataset();
+    focusCitySearch();
+}
+
+async function loadCountryOptions() {
+    try {
+        const response = await fetch(COUNTRIES_NOW_CAPITALS_URL);
+        if (!response.ok) {
+            throw new Error(`Country list failed (${response.status}).`);
+        }
+        const payload = await response.json();
+        const countries = (Array.isArray(payload?.data) ? payload.data : [])
+            .filter((country) => country?.name && country?.iso2 && country?.capital && getContinentForCode(country.iso2))
+            .map((country) => ({
+                name: country.name,
+                code: country.iso2,
+                capital: country.capital,
+                continent: getContinentForCode(country.iso2)
+            }))
+            .sort((a, b) => a.name.localeCompare(b.name));
+        if (!countries.length) {
+            throw new Error('The country list was empty.');
+        }
+        if (!uiState) return;
+        uiState.countries = countries;
+        uiState.countryStatus = 'ready';
+        if (!countries.some((country) => country.code === uiState.randomCountryCode)) {
+            uiState.randomCountryCode = countries[0].code;
+        }
+    } catch (error) {
+        if (!uiState) return;
+        uiState.countries = FALLBACK_COUNTRIES;
+        uiState.countryStatus = 'fallback';
+        console.warn('Using the bundled country list:', error);
+    }
+    renderWeatherDataset();
+}
+
+async function pickRandomLocations() {
+    uiState.randomStatus = 'loading';
+    uiState.generationMessage = '';
+    uiState.cities = [];
+    renderWeatherDataset();
+
+    try {
+        let cities;
+        if (uiState.locationMode === LOCATION_MODES.COUNTRY_RANDOM) {
+            const country = uiState.countries.find((item) => item.code === uiState.randomCountryCode);
+            if (!country) throw new Error('Choose a country first.');
+            cities = await geocodeRandomCitiesForCountry(country, uiState.randomCityCount);
+        } else if (uiState.locationMode === LOCATION_MODES.CONTINENT_RANDOM) {
+            const candidates = uiState.countries.filter((country) => country.continent === uiState.continent && country.capital);
+            const countries = sampleRandomItems(candidates, uiState.randomCountryCount);
+            if (countries.length < uiState.randomCountryCount) {
+                throw new Error(`Not enough countries with known capitals are available for ${uiState.continent}.`);
+            }
+            const pairs = await Promise.all(countries.map(async (country) => {
+                const capital = await geocodeCityName(country.capital, country.code);
+                const additional = await geocodeRandomCitiesForCountry(country, 1, [country.capital]);
+                return [capital, additional[0]];
+            }));
+            cities = pairs.flat();
+        } else {
+            return;
+        }
+
+        if (!uiState) return;
+        uiState.cities = dedupeCities(cities);
+        uiState.randomStatus = 'ready';
+        uiState.generationStatus = 'idle';
+        uiState.generationMessage = `${uiState.cities.length} locations selected.`;
+    } catch (error) {
+        if (!uiState) return;
+        uiState.randomStatus = 'error';
+        uiState.generationStatus = 'error';
+        uiState.generationMessage = error instanceof Error ? error.message : 'Random locations could not be selected.';
+    }
+    renderWeatherDataset();
+}
+
+async function geocodeRandomCitiesForCountry(country, count, excludedNames = []) {
+    const cityNames = await fetchCountryCityNames(country);
+    const excluded = new Set(excludedNames.map(normalizeNameKey));
+    const candidates = sampleRandomItems(cityNames.filter((name) => !excluded.has(normalizeNameKey(name))), cityNames.length);
+    const cities = [];
+    const maximumAttempts = Math.min(candidates.length, Math.max(count * 6, 12));
+
+    for (const name of candidates.slice(0, maximumAttempts)) {
+        try {
+            const city = await geocodeCityName(name, country.code);
+            if (!cities.some((item) => cityIdentity(item) === cityIdentity(city))) cities.push(city);
+            if (cities.length === count) return cities;
+        } catch {
+            // Some city-name sources use alternate spellings; continue through the randomized pool.
+        }
+    }
+    throw new Error(`Could not resolve ${count} random ${count === 1 ? 'city' : 'cities'} in ${country.name}. Try again.`);
+}
+
+async function fetchCountryCityNames(country) {
+    const fallback = FALLBACK_CITY_NAMES[country.code] || [];
+    try {
+        const params = new URLSearchParams({ country: country.name });
+        const response = await fetch(`${COUNTRIES_NOW_CITIES_URL}?${params}`);
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || payload.error || !Array.isArray(payload.data)) {
+            throw new Error(payload.msg || `City list failed (${response.status}).`);
+        }
+        return Array.from(new Set([...payload.data, ...fallback].filter(Boolean)));
+    } catch (error) {
+        if (fallback.length) return fallback;
+        throw new Error(`The city list for ${country.name} is temporarily unavailable.`, { cause: error });
+    }
+}
+
+async function geocodeCityName(name, countryCode = '') {
+    const params = new URLSearchParams({
+        name,
+        count: '10',
+        language: document.documentElement.lang || 'en',
+        format: 'json'
+    });
+    if (countryCode) params.set('countryCode', countryCode);
+
+    const response = await fetch(`${OPEN_METEO_GEOCODING_URL}?${params}`);
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(`City search failed (${response.status}).`);
+    const results = Array.isArray(payload.results) ? payload.results : [];
+    const city = results.find((item) => !countryCode || item.country_code === countryCode) || results[0];
+    if (!city) throw new Error(`No city could be found for “${name}”.`);
+    return normalizeGeocodingCity(city);
+}
+
+async function resolveManualCities() {
+    const names = parseCityQueries(uiState.cityQuery);
+    if (!names.length) throw new Error('Enter at least one city.');
+    if (names.length > MAX_RANDOM_CITIES) throw new Error(`Choose no more than ${MAX_RANDOM_CITIES} cities at once.`);
+
+    const cities = await Promise.all(names.map(async (name) => {
+        const existing = uiState.cities.find((city) => normalizeNameKey(city.name) === normalizeNameKey(name));
+        return existing || geocodeCityName(name);
+    }));
+    uiState.cities = dedupeCities(cities);
+    uiState.cityQuery = uiState.cities.map((city) => city.name.replace(/,/g, '')).join(', ');
+    return uiState.cities;
+}
+
+function normalizeGeocodingCity(city) {
+    return {
         id: city.id,
         name: city.name,
         country: city.country || city.country_code || '',
         countryCode: city.country_code || '',
         admin1: city.admin1 || '',
-        latitude: city.latitude,
-        longitude: city.longitude,
+        latitude: Number(city.latitude),
+        longitude: Number(city.longitude),
         elevation: city.elevation,
         timezone: city.timezone || ''
     };
-    uiState.cityQuery = city.name;
+}
+
+function retainCitiesPresentInQuery(query) {
+    const names = new Set(parseCityQueries(query).map(normalizeNameKey));
+    uiState.cities = uiState.cities.filter((city) => names.has(normalizeNameKey(city.name)));
+}
+
+function resetLocationSelection() {
+    uiState.cities = [];
+    uiState.cityQuery = '';
     uiState.cityResults = [];
     uiState.citySearchStatus = 'idle';
     uiState.citySelectedIndex = -1;
-    renderWeatherDataset();
+    uiState.randomStatus = 'idle';
+    uiState.generationMessage = '';
+}
+
+function getActiveCityQuery(query) {
+    return String(query || '').split(',').at(-1).trim();
+}
+
+function dedupeCities(cities) {
+    const byIdentity = new Map();
+    (cities || []).forEach((city) => {
+        if (city && Number.isFinite(Number(city.latitude)) && Number.isFinite(Number(city.longitude))) {
+            byIdentity.set(cityIdentity(city), city);
+        }
+    });
+    return Array.from(byIdentity.values());
+}
+
+function cityIdentity(city) {
+    return `${Number(city.latitude).toFixed(4)}:${Number(city.longitude).toFixed(4)}`;
+}
+
+function normalizeNameKey(value) {
+    return String(value || '').normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/gi, '').toLowerCase();
+}
+
+function getContinentForCode(code) {
+    return CONTINENTS.find((continent) => CONTINENT_COUNTRY_CODES[continent].includes(code)) || '';
+}
+
+function clampInteger(value, minimum, maximum) {
+    return Math.min(maximum, Math.max(minimum, Math.round(Number(value) || minimum)));
 }
 
 function applyDatePreset(days) {
@@ -866,37 +1262,40 @@ function applyDatePreset(days) {
 }
 
 async function generateDataset() {
-    const draft = getDraft();
-    const validationMessage = validateDatasetDraft(draft);
-    if (validationMessage) {
-        uiState.generationStatus = 'error';
-        uiState.generationMessage = validationMessage;
-        renderWeatherDataset();
-        return;
-    }
-
-    uiState.generationStatus = 'loading';
-    uiState.generationMessage = `Requesting ${formatNumber(estimateDatasetRows(draft.startDate, draft.endDate, draft.frequency))} rows from Open-Meteo…`;
-    renderWeatherDataset();
-
-    const requestUrl = buildOpenMeteoArchiveUrl(draft);
     try {
+        if (uiState.locationMode === LOCATION_MODES.MANUAL) {
+            uiState.generationStatus = 'loading';
+            uiState.generationMessage = 'Resolving the comma-separated city list…';
+            renderWeatherDataset();
+            await resolveManualCities();
+        }
+
+        const draft = getDraft();
+        const validationMessage = validateDatasetDraft(draft);
+        if (validationMessage) throw new Error(validationMessage);
+
+        uiState.generationStatus = 'loading';
+        uiState.generationMessage = `Requesting ${formatNumber(estimateDatasetRows(draft.startDate, draft.endDate, draft.frequency, draft.cities.length))} rows across ${draft.cities.length} ${draft.cities.length === 1 ? 'city' : 'cities'} from Open-Meteo…`;
+        renderWeatherDataset();
+
+        const requestUrl = buildOpenMeteoArchiveUrl(draft);
         const response = await fetch(requestUrl);
         const payload = await response.json().catch(() => ({}));
-        if (!response.ok || payload.error) {
-            throw new Error(payload.reason || `Open-Meteo request failed (${response.status}).`);
+        const responseError = getPayloads(payload).find((item) => item?.error);
+        if (!response.ok || responseError) {
+            throw new Error(responseError?.reason || payload.reason || `Open-Meteo request failed (${response.status}).`);
         }
 
         const csv = weatherResponseToCsv(payload, draft);
-        const rowCount = payload[draft.frequency]?.time?.length || 0;
+        const rowCount = getPayloads(payload).reduce((total, item) => total + (item?.[draft.frequency]?.time?.length || 0), 0);
         const metadata = createMetadataRecord(draft, payload, requestUrl, rowCount);
         downloadTextFile(csv, metadata.file_name, 'text/csv;charset=utf-8');
         const persistence = await saveMetadata(metadata);
 
         uiState.generationStatus = 'success';
         uiState.generationMessage = persistence === 'remote'
-            ? `${metadata.file_name} downloaded and its metadata was added to the shared library.`
-            : `${metadata.file_name} downloaded. Metadata is saved in this browser until the database migration is applied.`;
+            ? `${metadata.file_name} downloaded and its metadata was added to your private library.`
+            : `${metadata.file_name} downloaded. Its metadata is available only in this browser.`;
         uiState.datasetName = '';
         await loadLibrary({ preserveGenerationMessage: true });
     } catch (error) {
@@ -920,16 +1319,17 @@ async function recreateDataset(item) {
         if (!response.ok || payload.error) {
             throw new Error(payload.reason || `Open-Meteo request failed (${response.status}).`);
         }
-        const city = normalizeStoredCity(item.city);
+        const cities = normalizeStoredCities(item);
         const draft = {
-            city,
+            cities,
+            city: cities[0],
             frequency: item.temporal_resolution,
             variableIds: item.variable_ids || [],
             startDate: item.start_date,
             endDate: item.end_date
         };
         const csv = weatherResponseToCsv(payload, draft);
-        downloadTextFile(csv, item.file_name || `${slugify(city.name || 'weather')}.csv`, 'text/csv;charset=utf-8');
+        downloadTextFile(csv, item.file_name || `${slugify(cities[0]?.name || 'weather')}.csv`, 'text/csv;charset=utf-8');
         uiState.generationStatus = 'success';
         uiState.generationMessage = `${item.file_name || 'Dataset'} was recreated and downloaded.`;
     } catch (error) {
@@ -944,7 +1344,8 @@ function createMetadataRecord(draft, payload, requestUrl, rowCount) {
     const generatedAt = new Date().toISOString();
     const variableCatalog = getWeatherVariables(draft.frequency);
     const variableLabels = draft.variableIds.map((id) => variableCatalog.find((item) => item.id === id)?.label || id);
-    const baseName = uiState.datasetName.trim() || `${draft.city.name} ${draft.frequency} weather`;
+    const citySummary = draft.cities.length === 1 ? draft.cities[0].name : `${draft.cities[0].name} +${draft.cities.length - 1} cities`;
+    const baseName = uiState.datasetName.trim() || `${citySummary} ${draft.frequency} weather`;
     const fileName = `${slugify(baseName)}_${draft.startDate}_${draft.endDate}.csv`;
 
     return {
@@ -953,7 +1354,8 @@ function createMetadataRecord(draft, payload, requestUrl, rowCount) {
         creator_name: getCreatorName(user),
         creator_email: user.email || null,
         name: baseName,
-        city: draft.city,
+        city: draft.cities[0],
+        cities: draft.cities,
         temporal_resolution: draft.frequency,
         variable_ids: draft.variableIds,
         variable_labels: variableLabels,
@@ -965,9 +1367,9 @@ function createMetadataRecord(draft, payload, requestUrl, rowCount) {
         file_name: fileName,
         storage_status: 'metadata_only',
         request_url: requestUrl,
-        api_generation_time_ms: payload.generationtime_ms ?? null,
-        response_timezone: payload.timezone || null,
-        units: payload[`${draft.frequency}_units`] || {}
+        api_generation_time_ms: getPayloads(payload).reduce((total, item) => total + (Number(item?.generationtime_ms) || 0), 0) || null,
+        response_timezone: draft.cities.length === 1 ? getPayloads(payload)[0]?.timezone || null : 'Multiple time zones',
+        units: getPayloads(payload)[0]?.[`${draft.frequency}_units`] || {}
     };
 }
 
@@ -994,7 +1396,10 @@ async function loadLibrary(options = {}) {
     uiState.libraryMessage = '';
     renderWeatherDataset();
 
-    const localItems = readLocalMetadata();
+    const currentUserId = mountedOptions?.session?.user?.id || null;
+    const localItems = currentUserId
+        ? readLocalMetadata().filter((item) => item?.user_id === currentUserId)
+        : [];
     let remoteItems = [];
     const supabase = mountedOptions?.supabase;
     const hasAuthenticatedUser = Boolean(mountedOptions?.session?.user?.id);
@@ -1002,10 +1407,11 @@ async function loadLibrary(options = {}) {
         const { data, error } = await supabase
             .from('weather_datasets')
             .select('*')
+            .eq('user_id', currentUserId)
             .order('generated_at', { ascending: false })
             .limit(MAX_LIBRARY_ITEMS);
         if (error) {
-            uiState.libraryMessage = 'Showing this browser’s metadata. Apply the weather_datasets migration to enable the shared library.';
+            uiState.libraryMessage = 'Showing your metadata saved in this browser. Apply the latest weather migration to restore database access.';
         } else {
             remoteItems = data || [];
         }
@@ -1023,6 +1429,7 @@ async function loadLibrary(options = {}) {
 }
 
 function saveLocalMetadata(metadata) {
+    if (!metadata.user_id) return;
     try {
         const items = readLocalMetadata().filter((item) => item.id !== metadata.id);
         items.unshift(metadata);
@@ -1051,7 +1458,8 @@ function mergeLibraryItems(remoteItems, localItems) {
 
 function getDraft() {
     return {
-        city: uiState.city,
+        cities: uiState.cities,
+        city: uiState.cities[0] || null,
         frequency: uiState.frequency,
         variableIds: Array.from(uiState.selectedByFrequency[uiState.frequency]),
         startDate: uiState.startDate,
@@ -1060,6 +1468,34 @@ function getDraft() {
         windSpeedUnit: uiState.windSpeedUnit,
         precipitationUnit: uiState.precipitationUnit
     };
+}
+
+function validateBuilderDraft(today) {
+    const draft = getDraft();
+    if (uiState.locationMode === LOCATION_MODES.MANUAL) {
+        const typedNames = parseCityQueries(uiState.cityQuery);
+        if (typedNames.length) {
+            draft.cities = typedNames.map(() => ({ latitude: 0, longitude: 0 }));
+            draft.city = draft.cities[0];
+        }
+    }
+    return validateDatasetDraft(draft, today);
+}
+
+function getEstimatedLocationCount() {
+    if (uiState.cities.length) return uiState.cities.length;
+    if (uiState.locationMode === LOCATION_MODES.MANUAL) return Math.max(1, parseCityQueries(uiState.cityQuery).length);
+    if (uiState.locationMode === LOCATION_MODES.COUNTRY_RANDOM) return uiState.randomCityCount;
+    return uiState.randomCountryCount * 2;
+}
+
+function getDraftCities(draft) {
+    if (Array.isArray(draft?.cities)) return draft.cities.filter(Boolean);
+    return draft?.city ? [draft.city] : [];
+}
+
+function getPayloads(payload) {
+    return Array.isArray(payload) ? payload : [payload];
 }
 
 function getVisibleVariables() {
@@ -1110,6 +1546,20 @@ function normalizeStoredCity(city) {
         }
     }
     return {};
+}
+
+function normalizeStoredCities(item) {
+    let storedCities = item?.cities;
+    if (typeof storedCities === 'string') {
+        try {
+            storedCities = JSON.parse(storedCities);
+        } catch {
+            storedCities = [];
+        }
+    }
+    if (Array.isArray(storedCities) && storedCities.length) return storedCities.map(normalizeStoredCity);
+    const legacyCity = normalizeStoredCity(item?.city);
+    return legacyCity?.name ? [legacyCity] : [];
 }
 
 function formatCityContext(city) {
